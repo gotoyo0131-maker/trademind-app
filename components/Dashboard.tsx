@@ -192,6 +192,9 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
                                 <span className={`text-[10px] font-black ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
                                   {isPositive ? '+' : ''}{(item.pnl || 0).toFixed(0)}
                                 </span>
+                                <span className="text-[9px] text-slate-500 font-bold mt-0.5">
+                                  {item.count} 筆
+                                </span>
                               </div>
                             )}
                           </>

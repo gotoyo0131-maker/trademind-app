@@ -13,9 +13,14 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
 
   const getAnalysis = async () => {
     setIsLoading(true);
-    const feedback = await analyzeTradeHistory(trades);
-    setAnalysis(feedback);
-    setIsLoading(false);
+    try {
+      const feedback = await analyzeTradeHistory(trades);
+      setAnalysis(feedback || "未能取得有效回饋。");
+    } catch (e) {
+      setAnalysis("發生錯誤，請稍後再試。");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

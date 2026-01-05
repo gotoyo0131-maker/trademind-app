@@ -14,6 +14,14 @@ interface DashboardProps {
 
 type Period = 'all' | 'month';
 
+interface CalendarDay {
+  empty?: boolean;
+  day?: number;
+  pnl?: number;
+  count?: number;
+  dateStr?: string;
+}
+
 const formatDuration = (ms: number) => {
   if (ms <= 0 || isNaN(ms)) return "0分";
   const seconds = Math.floor(ms / 1000);
@@ -57,36 +65,25 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
     
     const getDuration = (t: Trade) => new Date(t.exitTime).getTime() - new Date(t.entryTime).getTime();
     
-    // 平均總時長
     const avgDuration = filteredTrades.reduce((acc, t) => acc + getDuration(t), 0) / totalTrades;
-    // 平均獲勝時長
     const avgWinDuration = wins.length > 0 
       ? wins.reduce((acc, t) => acc + getDuration(t), 0) / wins.length 
       : 0;
-    // 平均虧損時長
     const avgLossDuration = losses.length > 0 
       ? losses.reduce((acc, t) => acc + getDuration(t), 0) / losses.length 
       : 0;
 
-    // 平均盈虧
     const avgProfit = wins.length > 0 ? wins.reduce((acc, t) => acc + t.pnlAmount, 0) / wins.length : 0;
     const avgLoss = losses.length > 0 ? losses.reduce((acc, t) => acc + t.pnlAmount, 0) / losses.length : 0;
 
-    // 方向分析
     const longCount = filteredTrades.filter(t => t.direction === TradeDirection.LONG).length;
     const shortCount = totalTrades - longCount;
     const longPct = (longCount / totalTrades) * 100;
     const shortPct = (shortCount / totalTrades) * 100;
 
-    // 最佳/最差交易
     const sortedByPnl = [...filteredTrades].sort((a, b) => b.pnlAmount - a.pnlAmount);
     const bestTrade = sortedByPnl[0];
     const worstTrade = sortedByPnl[sortedByPnl.length - 1];
-
-    const directionData = [
-      { name: '做多', value: longCount, color: '#6366f1' },
-      { name: '做空', value: shortCount, color: '#f43f5e' }
-    ];
 
     const dailyMap: Record<string, number> = {};
     filteredTrades.forEach(t => {
@@ -104,19 +101,18 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
     return { 
       totalTrades, winRate, totalPnl, avgDuration, avgProfit, avgLoss, 
       avgWinDuration, avgLossDuration, bestTrade, worstTrade,
-      longPct, shortPct, directionData, chartData 
+      longPct, shortPct, chartData 
     };
   }, [filteredTrades]);
 
   const weekDays = ['一', '二', '三', '四', '五', '六', '日'];
 
-  // 日曆計算
-  const calendarDays = useMemo(() => {
+  const calendarDays = useMemo<CalendarDay[]>(() => {
     if (period !== 'month') return [];
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
     const adjustedFirstDay = firstDay === 0 ? 6 : firstDay - 1;
-    const days = [];
+    const days: CalendarDay[] = [];
     for (let i = 0; i < adjustedFirstDay; i++) days.push({ empty: true });
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(year, month, i);
@@ -155,7 +151,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
         </div>
       </header>
 
-      {/* 第一層：核心核心指標 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
           { label: '累計盈虧', value: `$${stats?.totalPnl.toFixed(2) || '0.00'}`, color: stats?.totalPnl && stats.totalPnl >= 0 ? 'text-emerald-500' : 'text-rose-500', icon: 'fa-wallet' },
@@ -173,7 +168,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
         ))}
       </div>
 
-      {/* 第二層：平均盈虧與方向比例 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">平均盈利交易</p>
@@ -204,7 +198,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
       </div>
 
       <div className={`grid grid-cols-1 ${period === 'month' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
-        {/* 左側：月份模式下的日曆 */}
         {period === 'month' && (
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-full">
@@ -224,37 +217,39 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
                   {weekDays.map(d => <div key={d} className="text-center text-[10px] font-bold text-slate-400 py-1">{d}</div>)}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
-                  {calendarDays.map((item, idx) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => !item.empty && item.count > 0 && onDateClick(item.dateStr || '')}
-                      className={`h-16 md:h-20 border rounded-lg p-1 transition relative flex flex-col ${item.empty ? 'bg-slate-50 border-transparent opacity-30' : 'bg-white border-slate-100'} ${!item.empty && item.count > 0 ? (item.pnl >= 0 ? 'bg-emerald-50/40 border-emerald-100 hover:border-emerald-300 cursor-pointer hover:shadow-sm' : 'bg-rose-50/40 border-rose-100 hover:border-rose-300 cursor-pointer hover:shadow-sm') : 'cursor-default'}`}
-                    >
-                      {!item.empty && (
-                        <>
-                          <span className="text-[10px] font-bold text-slate-400">{item.day}</span>
-                          {item.count > 0 && (
-                            <div className="flex flex-col items-center justify-center flex-grow -mt-1">
-                              <span className={`text-[10px] font-black ${item.pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                {item.pnl >= 0 ? '+' : ''}{item.pnl.toFixed(0)}
-                              </span>
-                              <span className="text-[8px] text-slate-500 font-medium">{item.count} 筆交易</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ))}
+                  {calendarDays.map((item, idx) => {
+                    const hasTrades = item.count && item.count > 0;
+                    const isPositive = (item.pnl ?? 0) >= 0;
+                    
+                    return (
+                      <div 
+                        key={idx} 
+                        onClick={() => !item.empty && hasTrades && onDateClick(item.dateStr || '')}
+                        className={`h-16 md:h-20 border rounded-lg p-1 transition relative flex flex-col ${item.empty ? 'bg-slate-50 border-transparent opacity-30' : 'bg-white border-slate-100'} ${!item.empty && hasTrades ? (isPositive ? 'bg-emerald-50/40 border-emerald-100 hover:border-emerald-300 cursor-pointer hover:shadow-sm' : 'bg-rose-50/40 border-rose-100 hover:border-rose-300 cursor-pointer hover:shadow-sm') : 'cursor-default'}`}
+                      >
+                        {!item.empty && (
+                          <>
+                            <span className="text-[10px] font-bold text-slate-400">{item.day}</span>
+                            {hasTrades && (
+                              <div className="flex flex-col items-center justify-center flex-grow -mt-1">
+                                <span className={`text-[10px] font-black ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                  {isPositive ? '+' : ''}{(item.pnl ?? 0).toFixed(0)}
+                                </span>
+                                <span className="text-[8px] text-slate-500 font-medium">{item.count} 筆</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* 右側：詳細指標與極值 */}
         <div className={`space-y-4 ${period === 'all' ? 'lg:col-span-2' : ''}`}>
-          
-          {/* 極端交易卡片 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
               <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">最佳交易 (Best)</p>
@@ -268,7 +263,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
             </div>
           </div>
 
-          {/* 持倉時間卡片 */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <h3 className="text-[11px] font-bold text-slate-700 mb-4 flex items-center gap-2">
               <i className="fas fa-history text-indigo-400"></i>
@@ -296,7 +290,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
             </div>
           </div>
 
-          {/* 總體模式下的圖表排版 */}
           {period === 'all' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-64">
@@ -326,7 +319,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
                     <YAxis fontSize={10} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }} />
                     <Bar dataKey="net">
-                      {stats?.chartData.map((entry, index) => (
+                      {(stats?.chartData || []).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.net >= 0 ? '#10b981' : '#ef4444'} />
                       ))}
                     </Bar>
@@ -336,7 +329,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
             </div>
           )}
 
-          {/* 月份模式下，圖表垂直排列在右側 */}
           {period === 'month' && (
             <div className="space-y-4">
               <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm h-48">
@@ -355,7 +347,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={stats?.chartData || []}>
                     <Bar dataKey="net">
-                      {stats?.chartData.map((entry, index) => (
+                      {(stats?.chartData || []).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.net >= 0 ? '#10b981' : '#ef4444'} />
                       ))}
                     </Bar>

@@ -2,12 +2,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { Trade } from "../types";
 
-export const analyzeTradeHistory = async (trades: Trade[]) => {
+export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "目前還沒有交易資料可以分析。請先記錄您的第一筆交易！";
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
   
-  // 提取最近的 10 筆交易摘要，包含心理與錯誤維度
   const logs = trades.slice(0, 10).map(t => ({
     symbol: t.symbol,
     pnl: t.pnlAmount,
@@ -41,7 +40,7 @@ export const analyzeTradeHistory = async (trades: Trade[]) => {
       }
     });
 
-    return response.text;
+    return response.text ?? "AI 導師未能生成分析內容，請稍後再試。";
   } catch (error) {
     console.error("Gemini Error:", error);
     return "AI 導師目前無法連線。請確保您的 API 金鑰正確且具備存取權限。";

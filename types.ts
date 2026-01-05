@@ -15,9 +15,20 @@ export enum ErrorCategory {
   BREAKING_RULES = '違反交易規則'
 }
 
+export type Role = 'admin' | 'user';
+
+export interface User {
+  id: string;
+  username: string;
+  password?: string; // 本地模擬，實際生產環境不建議存明文
+  role: Role;
+  createdAt: string;
+}
+
 export interface Trade {
   id: string;
-  // 第一維度：基礎數據 (Hard Data)
+  userId: string; // 關聯用戶 ID
+  // 第一維度：基礎數據
   entryTime: string;
   exitTime: string;
   symbol: string;
@@ -28,26 +39,24 @@ export interface Trade {
   fees: number;
   slippage: number;
   
-  // 第二維度：策略與邏輯 (Technical)
+  // 第二維度：策略
   setup: string;
   stopLoss: number;
   takeProfit: number;
-  screenshotBefore?: string;
-  screenshotAfter?: string;
 
-  // 第三維度：心理狀態與行為 (Subjective)
-  confidence: number; // 1-10
-  emotions: string; // 標籤
-  preTradeMindset: string; // 進場前心態
-  executionRating: number; // 1-5 星
+  // 第三維度：心理
+  confidence: number;
+  emotions: string;
+  preTradeMindset: string;
+  executionRating: number;
   notesOnExecution: string;
 
-  // 第四維度：檢討與總結 (Growth)
+  // 第四維度：總結
   errorCategory: ErrorCategory;
   improvements: string;
   summary: string;
 
-  // 自動計算欄位
+  // 計算欄位
   pnlAmount: number;
   pnlPercentage: number;
   riskRewardRatio: number;

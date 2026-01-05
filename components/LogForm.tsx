@@ -8,21 +8,22 @@ interface LogFormProps {
   onCancel: () => void;
   initialData?: Trade | null;
   setupOptions: string[];
+  symbolOptions: string[];
 }
 
-const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupOptions }) => {
+const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupOptions, symbolOptions }) => {
   const [formData, setFormData] = useState<Partial<Trade>>({
     id: crypto.randomUUID(),
     entryTime: new Date().toISOString().slice(0, 16),
     exitTime: new Date().toISOString().slice(0, 16),
-    symbol: '',
+    symbol: symbolOptions[0] || '',
     direction: TradeDirection.LONG,
     entryPrice: 0,
     exitPrice: 0,
     size: 0,
     fees: 0,
     slippage: 0,
-    setup: setupOptions[0] || '趨勢跟蹤',
+    setup: setupOptions[0] || '',
     stopLoss: 0,
     takeProfit: 0,
     confidence: 7,
@@ -106,8 +107,19 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">標的</label>
-            <input type="text" value={formData.symbol} onChange={e => setFormData({...formData, symbol: e.target.value})} required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" placeholder="BTC/USDT" />
+            <label className="text-xs font-bold text-slate-500 uppercase">標的 (Symbol)</label>
+            <select 
+              value={formData.symbol} 
+              onChange={e => setFormData({...formData, symbol: e.target.value})} 
+              required 
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-indigo-700 outline-none focus:border-indigo-500"
+            >
+              {symbolOptions.length > 0 ? (
+                symbolOptions.map(s => <option key={s} value={s}>{s}</option>)
+              ) : (
+                <option value="">請先至設置頁面新增標的</option>
+              )}
+            </select>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase">方向</label>

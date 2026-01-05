@@ -10,7 +10,7 @@ import SetupSettings from './components/SetupSettings';
 import TradeCalendar from './components/TradeCalendar';
 import Auth from './components/Auth';
 import UserManagement from './components/UserManagement';
-import { INITIAL_SETUP_OPTIONS } from './constants';
+import { INITIAL_SETUP_OPTIONS, INITIAL_SYMBOL_OPTIONS } from './constants';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'calendar' | 'logs' | 'add' | 'settings' | 'mindset' | 'users'>('dashboard');
   const [allTrades, setAllTrades] = useState<Trade[]>([]);
   const [setupOptions, setSetupOptions] = useState<string[]>([]);
+  const [symbolOptions, setSymbolOptions] = useState<string[]>([]);
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [logFilter, setLogFilter] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -31,7 +32,6 @@ const App: React.FC = () => {
     if (savedUsers) {
       setUsers(JSON.parse(savedUsers));
     } else {
-      // 初始預設管理員
       const defaultAdmin: User = { id: 'admin-1', username: 'admin', password: '123', role: 'admin', createdAt: new Date().toISOString() };
       setUsers([defaultAdmin]);
       localStorage.setItem('trademind_users', JSON.stringify([defaultAdmin]));
@@ -42,6 +42,9 @@ const App: React.FC = () => {
 
     const savedSetups = localStorage.getItem('trademind_setups');
     setSetupOptions(savedSetups ? JSON.parse(savedSetups) : INITIAL_SETUP_OPTIONS);
+
+    const savedSymbols = localStorage.getItem('trademind_symbols');
+    setSymbolOptions(savedSymbols ? JSON.parse(savedSymbols) : INITIAL_SYMBOL_OPTIONS);
   }, []);
 
   // 當交易數據變動時保存
@@ -55,6 +58,15 @@ const App: React.FC = () => {
       localStorage.setItem('trademind_users', JSON.stringify(users));
     }
   }, [users]);
+
+  // 當選項變動時保存
+  useEffect(() => {
+    localStorage.setItem('trademind_setups', JSON.stringify(setupOptions));
+  }, [setupOptions]);
+
+  useEffect(() => {
+    localStorage.setItem('trademind_symbols', JSON.stringify(symbolOptions));
+  }, [symbolOptions]);
 
   // 過濾當前用戶的交易
   const userTrades = useMemo(() => {
@@ -185,8 +197,18 @@ const App: React.FC = () => {
             />
           )}
           {view === 'logs' && <LogList trades={userTrades} onDelete={(id) => setAllTrades(prev => prev.filter(t => t.id !== id))} onEdit={(t) => { setEditingTrade(t); setView('add'); }} onAddNew={() => { setEditingTrade(null); setView('add'); }} initialFilter={logFilter} />}
-          {view === 'add' && <LogForm onSave={handleSaveTrade} onCancel={() => setView('logs')} initialData={editingTrade} setupOptions={setupOptions} />}
-          {view === 'settings' && <SetupSettings options={setupOptions} trades={userTrades} onUpdate={setSetupOptions} onResetData={() => setAllTrades([])} onImportData={(t) => setAllTrades(t)} />}
+          {view === 'add' && <LogForm onSave={handleSaveTrade} onCancel={() => setView('logs')} initialData={editingTrade} setupOptions={setupOptions} symbolOptions={symbolOptions} />}
+          {view === 'settings' && (
+            <SetupSettings 
+              options={setupOptions} 
+              symbolOptions={symbolOptions}
+              trades={userTrades} 
+              onUpdate={setSetupOptions} 
+              onUpdateSymbols={setSymbolOptions}
+              onResetData={() => setAllTrades([])} 
+              onImportData={(trades, setups) => { setAllTrades(trades); setSetupOptions(setups); }} 
+            />
+          )}
         </div>
       </main>
     </div>

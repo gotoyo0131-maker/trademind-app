@@ -5,14 +5,17 @@ import { syncToGithub, pullFromGithub, GitHubConfig } from '../services/githubSe
 
 interface SetupSettingsProps {
   options: string[];
+  symbolOptions: string[];
   trades: Trade[];
   onUpdate: (newOptions: string[]) => void;
+  onUpdateSymbols: (newSymbols: string[]) => void;
   onResetData: () => void;
   onImportData: (trades: Trade[], setups: string[]) => void;
 }
 
-const SetupSettings: React.FC<SetupSettingsProps> = ({ options, trades, onUpdate, onResetData, onImportData }) => {
+const SetupSettings: React.FC<SetupSettingsProps> = ({ options, symbolOptions, trades, onUpdate, onUpdateSymbols, onResetData, onImportData }) => {
   const [newSetup, setNewSetup] = useState('');
+  const [newSymbol, setNewSymbol] = useState('');
   const [ghConfig, setGhConfig] = useState<GitHubConfig>({ token: '', gistId: '' });
   const [isSyncing, setIsSyncing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,7 +59,7 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ options, trades, onUpdate
     }
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAddSetup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSetup.trim()) return;
     if (options.includes(newSetup.trim())) return alert('此設置已存在');
@@ -64,8 +67,16 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ options, trades, onUpdate
     setNewSetup('');
   };
 
+  const handleAddSymbol = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSymbol.trim()) return;
+    if (symbolOptions.includes(newSymbol.trim())) return alert('此標的已存在');
+    onUpdateSymbols([...symbolOptions, newSymbol.trim()]);
+    setNewSymbol('');
+  };
+
   const exportToJson = () => {
-    const data = { trades, setups: options, exportedAt: new Date().toISOString() };
+    const data = { trades, setups: options, symbols: symbolOptions, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -133,12 +144,39 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ options, trades, onUpdate
         </div>
       </section>
 
+      {/* 標的管理 */}
+      <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+        <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+          <i className="fas fa-coins text-amber-500"></i> 自定義交易標的 (Symbols)
+        </h3>
+        <form onSubmit={handleAddSymbol} className="flex gap-2 mb-8">
+          <input 
+            type="text" 
+            value={newSymbol} 
+            onChange={(e) => setNewSymbol(e.target.value)}
+            placeholder="例如：BTC/USDT, TSLA..." 
+            className="flex-grow p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium"
+          />
+          <button type="submit" className="bg-amber-500 text-white px-6 py-3 rounded-xl font-bold hover:bg-amber-600 transition shadow-md">新增標的</button>
+        </form>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {symbolOptions.map((symbol) => (
+            <div key={symbol} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl group hover:bg-white hover:border-amber-100 transition">
+              <span className="font-semibold text-slate-700 text-sm">{symbol}</span>
+              <button onClick={() => onUpdateSymbols(symbolOptions.filter(s => s !== symbol))} className="p-2 text-slate-300 hover:text-rose-600 transition opacity-0 group-hover:opacity-100">
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* 策略管理 */}
       <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
           <i className="fas fa-tags text-indigo-500"></i> 自定義交易策略 (Setups)
         </h3>
-        <form onSubmit={handleAdd} className="flex gap-2 mb-8">
+        <form onSubmit={handleAddSetup} className="flex gap-2 mb-8">
           <input 
             type="text" 
             value={newSetup} 
@@ -146,7 +184,7 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ options, trades, onUpdate
             placeholder="例如：VCP 形態突破..." 
             className="flex-grow p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition font-medium"
           />
-          <button type="submit" className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-md">新增</button>
+          <button type="submit" className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-md">新增策略</button>
         </form>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {options.map((option) => (

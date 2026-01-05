@@ -11,6 +11,17 @@ export const INITIAL_SETUP_OPTIONS = [
   '消息面驅動'
 ];
 
+export const INITIAL_SYMBOL_OPTIONS = [
+  'BTC/USDT',
+  'ETH/USDT',
+  'SOL/USDT',
+  'XAU/USD (黃金)',
+  'AAPL (蘋果)',
+  'TSLA (特斯拉)',
+  'EUR/USD',
+  '台指期'
+];
+
 export const EMOTION_TAGS = [
   '冷靜',
   '焦慮',

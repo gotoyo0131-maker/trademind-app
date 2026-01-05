@@ -7,7 +7,6 @@ import LogList from './components/LogList';
 import MindsetAnalysis from './components/MindsetAnalysis';
 import GeminiCoach from './components/GeminiCoach';
 import SetupSettings from './components/SetupSettings';
-import TradeCalendar from './components/TradeCalendar';
 import Auth from './components/Auth';
 import UserManagement from './components/UserManagement';
 import { INITIAL_SETUP_OPTIONS, INITIAL_SYMBOL_OPTIONS } from './constants';
@@ -15,7 +14,7 @@ import { INITIAL_SETUP_OPTIONS, INITIAL_SYMBOL_OPTIONS } from './constants';
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [view, setView] = useState<'dashboard' | 'calendar' | 'logs' | 'add' | 'settings' | 'mindset' | 'users'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'logs' | 'add' | 'settings' | 'mindset' | 'users'>('dashboard');
   const [allTrades, setAllTrades] = useState<Trade[]>([]);
   const [setupOptions, setSetupOptions] = useState<string[]>([]);
   const [symbolOptions, setSymbolOptions] = useState<string[]>([]);
@@ -115,7 +114,6 @@ const App: React.FC = () => {
 
   const navItems = [
     { id: 'dashboard', label: '績效看板', icon: 'fa-th-large', roles: ['admin', 'user'] },
-    { id: 'calendar', label: '交易日曆', icon: 'fa-calendar-alt', roles: ['admin', 'user'] },
     { id: 'mindset', label: '心理分析', icon: 'fa-brain', roles: ['admin', 'user'] },
     { id: 'logs', label: '交易日誌', icon: 'fa-list', roles: ['admin', 'user'] },
     { id: 'add', label: '記錄交易', icon: 'fa-plus-circle', roles: ['user'] },
@@ -185,7 +183,6 @@ const App: React.FC = () => {
       <main className="flex-grow p-4 md:p-10 overflow-y-auto">
         <div className="max-w-6xl mx-auto">
           {view === 'dashboard' && <Dashboard trades={userTrades} onViewLogs={() => setView('logs')} onDateClick={(d) => { setLogFilter(d); setView('logs'); }} />}
-          {view === 'calendar' && <TradeCalendar trades={userTrades} />}
           {view === 'mindset' && <MindsetAnalysis trades={userTrades} />}
           {view === 'users' && currentUser.role === 'admin' && (
             <UserManagement 
@@ -203,6 +200,7 @@ const App: React.FC = () => {
               options={setupOptions} 
               symbolOptions={symbolOptions}
               trades={userTrades} 
+              currentUserId={currentUser.id}
               onUpdate={setSetupOptions} 
               onUpdateSymbols={setSymbolOptions}
               onResetData={() => setAllTrades([])} 

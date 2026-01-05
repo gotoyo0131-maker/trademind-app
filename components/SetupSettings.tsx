@@ -1,19 +1,21 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Trade } from '../types';
+import { Trade, TradeDirection, ErrorCategory } from '../types';
+import { EMOTION_TAGS } from '../constants';
 import { syncToGithub, pullFromGithub, GitHubConfig } from '../services/githubService';
 
 interface SetupSettingsProps {
   options: string[];
   symbolOptions: string[];
   trades: Trade[];
+  currentUserId: string;
   onUpdate: (newOptions: string[]) => void;
   onUpdateSymbols: (newSymbols: string[]) => void;
   onResetData: () => void;
   onImportData: (trades: Trade[], setups: string[]) => void;
 }
 
-const SetupSettings: React.FC<SetupSettingsProps> = ({ options, symbolOptions, trades, onUpdate, onUpdateSymbols, onResetData, onImportData }) => {
+const SetupSettings: React.FC<SetupSettingsProps> = ({ options, symbolOptions, trades, currentUserId, onUpdate, onUpdateSymbols, onResetData, onImportData }) => {
   const [newSetup, setNewSetup] = useState('');
   const [newSymbol, setNewSymbol] = useState('');
   const [ghConfig, setGhConfig] = useState<GitHubConfig>({ token: '', gistId: '' });
@@ -201,14 +203,14 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ options, symbolOptions, t
       {/* 本地數據管理 */}
       <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <i className="fas fa-file-export text-indigo-500"></i> 本地文件備份
+          <i className="fas fa-file-export text-indigo-500"></i> 本地數據管理
         </h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button onClick={exportToJson} className="p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-400 transition font-bold text-sm">
-            <i className="fas fa-file-code mb-2 block text-xl"></i> 下載 JSON 備份檔
+            <i className="fas fa-file-code mb-2 block text-xl text-indigo-500"></i> 下載 JSON 備份
           </button>
           <button onClick={() => fileInputRef.current?.click()} className="p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-amber-400 transition font-bold text-sm">
-            <i className="fas fa-file-import mb-2 block text-xl"></i> 匯入 JSON 備份檔
+            <i className="fas fa-file-import mb-2 block text-xl text-amber-500"></i> 匯入 JSON 備份
             <input type="file" ref={fileInputRef} onChange={(e) => {
                const file = e.target.files?.[0];
                if (!file) return;

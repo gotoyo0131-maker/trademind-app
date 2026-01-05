@@ -50,7 +50,11 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
   }, [trades, period, year, month]);
 
   const stats = useMemo(() => {
-    if (filteredTrades.length === 0) return null;
+    if (filteredTrades.length === 0) return {
+      totalTrades: 0, winRate: 0, totalPnl: 0, avgDuration: 0, avgProfit: 0, avgLoss: 0,
+      avgWinDuration: 0, avgLossDuration: 0, bestTrade: null, worstTrade: null,
+      longPct: 0, shortPct: 0, longCount: 0, shortCount: 0
+    };
 
     const totalTrades = filteredTrades.length;
     const wins = filteredTrades.filter(t => t.pnlAmount > 0);
@@ -74,13 +78,19 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
 
     const longCount = filteredTrades.filter(t => t.direction.includes('多') || t.direction === TradeDirection.LONG).length;
     const shortCount = totalTrades - longCount;
-    const longPct = (longCount / totalTrades) * 100;
-    const shortPct = (shortCount / totalTrades) * 100;
+    const longPct = totalTrades > 0 ? (longCount / totalTrades) * 100 : 0;
+    const shortPct = totalTrades > 0 ? (shortCount / totalTrades) * 100 : 0;
 
     // 排序找出最佳與最差交易
     const sortedByPnl = [...filteredTrades].sort((a, b) => b.pnlAmount - a.pnlAmount);
-    const bestTrade = sortedByPnl[0];
-    const worstTrade = sortedByPnl[sortedByPnl.length - 1];
+    
+    // 只有在真的有獲利時才定義為 bestTrade
+    const bestCandidate = sortedByPnl[0];
+    const bestTrade = bestCandidate && bestCandidate.pnlAmount > 0 ? bestCandidate : null;
+    
+    // 只有在真的有虧損時才定義為 worstTrade
+    const worstCandidate = sortedByPnl[sortedByPnl.length - 1];
+    const worstTrade = worstCandidate && worstCandidate.pnlAmount < 0 ? worstCandidate : null;
 
     return { 
       totalTrades, winRate, totalPnl, avgDuration, avgProfit, avgLoss, 
@@ -136,11 +146,12 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
       </header>
 
       {/* 第一層：核心摘要 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard label="累計盈虧" value={`$${stats?.totalPnl.toFixed(2) || '0.00'}`} color={stats?.totalPnl && stats.totalPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'} icon="fa-wallet" />
-        <StatCard label="勝率 (Win Rate)" value={`${stats?.winRate.toFixed(1) || '0'}%`} color="text-indigo-600" icon="fa-chart-pie" />
-        <StatCard label="平均盈利交易" value={`$${stats?.avgProfit.toFixed(2) || '0.00'}`} color="text-emerald-500" icon="fa-arrow-trend-up" />
-        <StatCard label="平均虧損交易" value={`$${Math.abs(stats?.avgLoss || 0).toFixed(2)}`} color="text-rose-500" icon="fa-arrow-trend-down" />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <StatCard label="總交易筆數" value={stats.totalTrades} color="text-slate-900" icon="fa-clipboard-list" />
+        <StatCard label="累計盈虧" value={`$${stats.totalPnl.toFixed(2)}`} color={stats.totalPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'} icon="fa-wallet" />
+        <StatCard label="勝率 (Win Rate)" value={`${stats.winRate.toFixed(1)}%`} color="text-indigo-600" icon="fa-chart-pie" />
+        <StatCard label="平均盈利" value={`$${stats.avgProfit.toFixed(2)}`} color="text-emerald-500" icon="fa-arrow-trend-up" />
+        <StatCard label="平均虧損" value={`$${Math.abs(stats.avgLoss).toFixed(2)}`} color="text-rose-500" icon="fa-arrow-trend-down" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -262,7 +273,12 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
                     <div className="flex justify-between text-xs"><span className="text-slate-400">日期</span><span className="text-slate-500">{new Date(stats.bestTrade.entryTime).toLocaleDateString()}</span></div>
                   </div>
                </div>
-             ) : <p className="text-xs text-slate-400 italic">尚無紀錄</p>}
+             ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-slate-300">
+                    <i className="fas fa-trophy text-3xl mb-2 opacity-20"></i>
+                    <p className="text-[10px] font-bold uppercase">尚無獲利紀錄</p>
+                </div>
+             )}
           </div>
 
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-t-4 border-t-rose-500">
@@ -281,10 +297,15 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
                     <div className="flex justify-between text-xs"><span className="text-slate-400">日期</span><span className="text-slate-500">{new Date(stats.worstTrade.entryTime).toLocaleDateString()}</span></div>
                   </div>
                </div>
-             ) : <p className="text-xs text-slate-400 italic">尚無紀錄</p>}
+             ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-slate-300">
+                    <i className="fas fa-shield-alt text-3xl mb-2 opacity-20"></i>
+                    <p className="text-[10px] font-bold uppercase">尚無虧損紀錄</p>
+                </div>
+             )}
           </div>
 
-          {/* 多空百分比 (如果在月度模式則顯示在右側) */}
+          {/* 本月方向分佈 (月度模式顯示) */}
           {period === 'month' && (
              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">本月方向分佈</p>
@@ -305,12 +326,12 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
 };
 
 const StatCard = ({ label, value, color, icon }: { label: string, value: string | number, color: string, icon: string }) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
     <div className="flex justify-between items-start mb-2">
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
       <i className={`fas ${icon} text-slate-200`}></i>
     </div>
-    <p className={`text-2xl font-bold ${color}`}>{value}</p>
+    <p className={`text-xl lg:text-2xl font-black ${color}`}>{value}</p>
   </div>
 );
 

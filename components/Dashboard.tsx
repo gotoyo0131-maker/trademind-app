@@ -1,10 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
 import { Trade, TradeDirection } from '../types';
-import { 
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar
-} from 'recharts';
 
 interface DashboardProps {
   trades: Trade[];
@@ -23,7 +19,7 @@ interface CalendarDay {
 }
 
 const formatDuration = (ms: number) => {
-  if (ms <= 0 || isNaN(ms)) return "0分";
+  if (ms <= 0 || isNaN(ms)) return "0 分";
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -31,7 +27,7 @@ const formatDuration = (ms: number) => {
 
   if (days > 0) return `${days}天 ${hours % 24}時`;
   if (hours > 0) return `${hours}時 ${minutes % 60}分`;
-  return `${minutes}分 ${seconds % 60}秒`;
+  return `${minutes}分`;
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }) => {
@@ -76,32 +72,20 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
     const avgProfit = wins.length > 0 ? wins.reduce((acc, t) => acc + t.pnlAmount, 0) / wins.length : 0;
     const avgLoss = losses.length > 0 ? losses.reduce((acc, t) => acc + t.pnlAmount, 0) / losses.length : 0;
 
-    const longCount = filteredTrades.filter(t => t.direction === TradeDirection.LONG).length;
+    const longCount = filteredTrades.filter(t => t.direction.includes('多') || t.direction === TradeDirection.LONG).length;
     const shortCount = totalTrades - longCount;
     const longPct = (longCount / totalTrades) * 100;
     const shortPct = (shortCount / totalTrades) * 100;
 
+    // 排序找出最佳與最差交易
     const sortedByPnl = [...filteredTrades].sort((a, b) => b.pnlAmount - a.pnlAmount);
     const bestTrade = sortedByPnl[0];
     const worstTrade = sortedByPnl[sortedByPnl.length - 1];
 
-    const dailyMap: Record<string, number> = {};
-    filteredTrades.forEach(t => {
-      const date = new Date(t.entryTime).toLocaleDateString();
-      dailyMap[date] = (dailyMap[date] || 0) + t.pnlAmount;
-    });
-
-    const sortedDates = Object.keys(dailyMap).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-    let cumulative = 0;
-    const chartData = sortedDates.map(date => {
-      cumulative += dailyMap[date];
-      return { date, net: dailyMap[date], cumulative };
-    });
-
     return { 
       totalTrades, winRate, totalPnl, avgDuration, avgProfit, avgLoss, 
       avgWinDuration, avgLossDuration, bestTrade, worstTrade,
-      longPct, shortPct, chartData 
+      longPct, shortPct, longCount, shortCount
     };
   }, [filteredTrades]);
 
@@ -125,14 +109,14 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
   }, [trades, year, month, period]);
 
   return (
-    <div className="space-y-6 pb-20 animate-in fade-in duration-700">
+    <div className="space-y-6 pb-24 animate-in fade-in duration-700">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
             {period === 'month' ? '月度績效儀表板' : '總體績效儀表板'}
           </h2>
           <p className="text-slate-500 font-medium">
-            {period === 'month' ? `${year}年 ${month + 1}月的交易數據深度分析。` : '歷史所有交易紀錄的彙整統計報告。'}
+            {period === 'month' ? `${year}年 ${month + 1}月的數據分析` : '歷史所有交易紀錄的彙整統計'}
           </p>
         </div>
         <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
@@ -151,27 +135,19 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
         </div>
       </header>
 
+      {/* 第一層：核心摘要 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: '累計盈虧', value: `$${stats?.totalPnl.toFixed(2) || '0.00'}`, color: stats?.totalPnl && stats.totalPnl >= 0 ? 'text-emerald-500' : 'text-rose-500', icon: 'fa-wallet' },
-          { label: '勝率 (Win Rate)', value: `${stats?.winRate.toFixed(1) || '0'}%`, color: 'text-indigo-600', icon: 'fa-chart-pie' },
-          { label: '平均持倉時間', value: stats ? formatDuration(stats.avgDuration) : '--', color: 'text-slate-700', icon: 'fa-hourglass-half' },
-          { label: '交易筆數', value: stats?.totalTrades || '0', color: 'text-slate-700', icon: 'fa-hashtag' }
-        ].map((item, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
-            <div className="flex justify-between items-start mb-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.label}</p>
-              <i className={`fas ${item.icon} text-slate-200`}></i>
-            </div>
-            <p className={`text-2xl font-bold ${item.color}`}>{item.value}</p>
-          </div>
-        ))}
+        <StatCard label="累計盈虧" value={`$${stats?.totalPnl.toFixed(2) || '0.00'}`} color={stats?.totalPnl && stats.totalPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'} icon="fa-wallet" />
+        <StatCard label="勝率 (Win Rate)" value={`${stats?.winRate.toFixed(1) || '0'}%`} color="text-indigo-600" icon="fa-chart-pie" />
+        <StatCard label="平均盈利交易" value={`$${stats?.avgProfit.toFixed(2) || '0.00'}`} color="text-emerald-500" icon="fa-arrow-trend-up" />
+        <StatCard label="平均虧損交易" value={`$${Math.abs(stats?.avgLoss || 0).toFixed(2)}`} color="text-rose-500" icon="fa-arrow-trend-down" />
       </div>
 
-      <div className={`grid grid-cols-1 ${period === 'month' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
-        {period === 'month' && (
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-full">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 左側：日曆或多空分佈 */}
+        <div className="lg:col-span-2 space-y-6">
+          {period === 'month' ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
                   <i className="fas fa-calendar-check text-indigo-500"></i>
@@ -191,7 +167,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
                   {calendarDays.map((item, idx) => {
                     const hasTrades = (item.count || 0) > 0;
                     const isPositive = (item.pnl || 0) >= 0;
-                    
                     return (
                       <div 
                         key={idx} 
@@ -216,30 +191,127 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick }
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        <div className={`space-y-4 ${period === 'all' ? 'lg:col-span-2' : ''}`}>
-           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="text-[11px] font-bold text-slate-700 mb-4 flex items-center gap-2 uppercase tracking-widest">
-              <i className="fas fa-history text-indigo-400"></i>
-              平均持倉統計
-            </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-500">勝場平均持倉</span>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">{stats ? formatDuration(stats.avgWinDuration) : '--'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-500">敗場平均持倉</span>
-                <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded">{stats ? formatDuration(stats.avgLossDuration) : '--'}</span>
+          ) : (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="font-bold text-slate-800 text-sm mb-6 flex items-center gap-2">
+                <i className="fas fa-chart-bar text-indigo-500"></i>
+                交易數據總結
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="space-y-4">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">多空方向百分比</p>
+                    <div className="flex h-12 w-full rounded-xl overflow-hidden shadow-inner bg-slate-100">
+                      <div className="bg-indigo-500 flex items-center justify-center text-white text-[10px] font-bold transition-all" style={{ width: `${stats?.longPct || 50}%` }}>
+                        多 {stats?.longPct.toFixed(0)}%
+                      </div>
+                      <div className="bg-slate-800 flex items-center justify-center text-white text-[10px] font-bold transition-all" style={{ width: `${stats?.shortPct || 50}%` }}>
+                        空 {stats?.shortPct.toFixed(0)}%
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                      <span>{stats?.longCount} 筆做多</span>
+                      <span>{stats?.shortCount} 筆做空</span>
+                    </div>
+                 </div>
+                 <div className="space-y-4">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">總平均持倉效率</p>
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                       <span className="text-xs text-slate-600">總平均持倉</span>
+                       <span className="text-xs font-bold text-slate-800">{stats ? formatDuration(stats.avgDuration) : '--'}</span>
+                    </div>
+                 </div>
               </div>
             </div>
+          )}
+
+          {/* 持倉時間深度分析 */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+             <h3 className="font-bold text-slate-800 text-sm mb-6 flex items-center gap-2">
+                <i className="fas fa-hourglass-half text-indigo-500"></i>
+                持倉時間分析 (持續時間)
+             </h3>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-col p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                   <span className="text-[10px] font-black text-emerald-600 uppercase mb-1">平均獲勝持續時間</span>
+                   <span className="text-xl font-black text-emerald-700">{stats ? formatDuration(stats.avgWinDuration) : '--'}</span>
+                </div>
+                <div className="flex flex-col p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                   <span className="text-[10px] font-black text-rose-600 uppercase mb-1">平均損失持續時間</span>
+                   <span className="text-xl font-black text-rose-700">{stats ? formatDuration(stats.avgLossDuration) : '--'}</span>
+                </div>
+             </div>
+             <p className="mt-4 text-[10px] text-slate-400 italic">理想情況下，獲勝持續時間應長於損失持續時間（截斷虧損，讓利潤奔跑）。</p>
           </div>
+        </div>
+
+        {/* 右側：最佳/最差交易卡片 */}
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-t-4 border-t-emerald-500">
+             <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i className="fas fa-crown"></i> 最佳交易 (Best Trade)
+             </h3>
+             {stats?.bestTrade ? (
+               <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <span className="text-2xl font-black text-emerald-600">+${stats.bestTrade.pnlAmount.toFixed(2)}</span>
+                    <span className="text-xs font-bold text-emerald-400">+{stats.bestTrade.pnlPercentage.toFixed(2)}%</span>
+                  </div>
+                  <div className="pt-3 border-t border-slate-100 space-y-2">
+                    <div className="flex justify-between text-xs"><span className="text-slate-400">標的</span><span className="font-bold text-slate-700">{stats.bestTrade.symbol}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-slate-400">策略</span><span className="font-bold text-indigo-600">{stats.bestTrade.setup}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-slate-400">日期</span><span className="text-slate-500">{new Date(stats.bestTrade.entryTime).toLocaleDateString()}</span></div>
+                  </div>
+               </div>
+             ) : <p className="text-xs text-slate-400 italic">尚無紀錄</p>}
+          </div>
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-t-4 border-t-rose-500">
+             <h3 className="text-xs font-black text-rose-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <i className="fas fa-skull-crossbones"></i> 最糟糕交易 (Worst Trade)
+             </h3>
+             {stats?.worstTrade ? (
+               <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <span className="text-2xl font-black text-rose-600">-${Math.abs(stats.worstTrade.pnlAmount).toFixed(2)}</span>
+                    <span className="text-xs font-bold text-rose-400">{stats.worstTrade.pnlPercentage.toFixed(2)}%</span>
+                  </div>
+                  <div className="pt-3 border-t border-slate-100 space-y-2">
+                    <div className="flex justify-between text-xs"><span className="text-slate-400">標的</span><span className="font-bold text-slate-700">{stats.worstTrade.symbol}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-slate-400">錯誤</span><span className="font-bold text-rose-600">{stats.worstTrade.errorCategory}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-slate-400">日期</span><span className="text-slate-500">{new Date(stats.worstTrade.entryTime).toLocaleDateString()}</span></div>
+                  </div>
+               </div>
+             ) : <p className="text-xs text-slate-400 italic">尚無紀錄</p>}
+          </div>
+
+          {/* 多空百分比 (如果在月度模式則顯示在右側) */}
+          {period === 'month' && (
+             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">本月方向分佈</p>
+                <div className="flex h-8 w-full rounded-lg overflow-hidden bg-slate-100">
+                  <div className="bg-indigo-500" style={{ width: `${stats?.longPct || 50}%` }}></div>
+                  <div className="bg-slate-800" style={{ width: `${stats?.shortPct || 50}%` }}></div>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold mt-2">
+                  <span className="text-indigo-600">做多 {stats?.longPct.toFixed(0)}%</span>
+                  <span className="text-slate-800">做空 {stats?.shortPct.toFixed(0)}%</span>
+                </div>
+             </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
+
+const StatCard = ({ label, value, color, icon }: { label: string, value: string | number, color: string, icon: string }) => (
+  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
+    <div className="flex justify-between items-start mb-2">
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</p>
+      <i className={`fas ${icon} text-slate-200`}></i>
+    </div>
+    <p className={`text-2xl font-bold ${color}`}>{value}</p>
+  </div>
+);
 
 export default Dashboard;

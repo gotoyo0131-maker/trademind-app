@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { Trade } from "../types.ts";
+import { Trade } from "../types";
 
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "目前還沒有交易資料可以分析。請先記錄您的第一筆交易！";

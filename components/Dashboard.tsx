@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Trade, TradeDirection } from '../types.ts';
+import { Trade, TradeDirection } from '../types';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar

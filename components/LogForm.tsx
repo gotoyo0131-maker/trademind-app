@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trade, TradeDirection, ErrorCategory } from '../types.ts';
-import { EMOTION_TAGS } from '../constants.ts';
+import { Trade, TradeDirection, ErrorCategory } from '../types';
+import { EMOTION_TAGS } from '../constants';
 
 interface LogFormProps {
   onSave: (trade: Trade) => void;
@@ -92,7 +92,6 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
       </div>
 
-      {/* 第一維度 */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <SectionTitle num="一" title="基礎交易數據 (Hard Data)" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -136,7 +135,6 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
       </section>
 
-      {/* 第二維度 */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <SectionTitle num="二" title="策略與邏輯 (Technical)" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -159,7 +157,6 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
       </section>
 
-      {/* 第三維度 */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <SectionTitle num="三" title="心理狀態與行為 (Subjective)" />
         <div className="space-y-6">
@@ -196,7 +193,6 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
       </section>
 
-      {/* 第四維度 */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <SectionTitle num="四" title="檢討與總結 (Growth)" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trade } from './types.ts';
-import Dashboard from './components/Dashboard.tsx';
-import LogForm from './components/LogForm.tsx';
-import LogList from './components/LogList.tsx';
-import MindsetAnalysis from './components/MindsetAnalysis.tsx';
-import GeminiCoach from './components/GeminiCoach.tsx';
-import SetupSettings from './components/SetupSettings.tsx';
-import { INITIAL_SETUP_OPTIONS } from './constants.ts';
+import { Trade } from './types';
+import Dashboard from './components/Dashboard';
+import LogForm from './components/LogForm';
+import LogList from './components/LogList';
+import MindsetAnalysis from './components/MindsetAnalysis';
+import GeminiCoach from './components/GeminiCoach';
+import SetupSettings from './components/SetupSettings';
+import { INITIAL_SETUP_OPTIONS } from './constants';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'logs' | 'add' | 'settings' | 'mindset'>('dashboard');
@@ -60,7 +60,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
-      {/* 行動端標題列 */}
       <header className="md:hidden bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div className="flex items-center gap-2">
           <i className="fas fa-chart-line text-indigo-400"></i>
@@ -71,7 +70,6 @@ const App: React.FC = () => {
         </button>
       </header>
 
-      {/* 側邊導航欄 */}
       <nav className={`fixed md:relative inset-y-0 left-0 z-40 w-72 bg-slate-900 text-white p-6 flex flex-col shrink-0 transition-transform duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="hidden md:flex items-center gap-3 mb-10">
           <div className="bg-indigo-600 p-2 rounded-lg">
@@ -97,16 +95,14 @@ const App: React.FC = () => {
         </div>
 
         <div className="mt-auto pt-6 border-t border-slate-800 text-[10px] text-slate-500 text-center">
-           數據僅儲存於此裝置 · v1.2.2
+           數據僅儲存於此裝置 · v1.2.3
         </div>
       </nav>
 
-      {/* 行動端遮罩 */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-black/60 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
 
-      {/* 主要內容區 */}
       <main className="flex-grow p-4 md:p-10">
         <div className="max-w-6xl mx-auto">
           {view === 'dashboard' && (

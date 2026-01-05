@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trade } from '../types.ts';
+import { Trade } from '../types';
 
 interface LogListProps {
   trades: Trade[];

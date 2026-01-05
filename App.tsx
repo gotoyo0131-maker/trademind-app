@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trade, TradeDirection, ErrorCategory } from './types';
-import Dashboard from './components/Dashboard';
-import LogForm from './components/LogForm';
-import LogList from './components/LogList';
-import MindsetAnalysis from './components/MindsetAnalysis';
-import GeminiCoach from './components/GeminiCoach';
-import SetupSettings from './components/SetupSettings';
-import { INITIAL_SETUP_OPTIONS } from './constants';
+import { Trade, TradeDirection, ErrorCategory } from './types.ts';
+import Dashboard from './components/Dashboard.tsx';
+import LogForm from './components/LogForm.tsx';
+import LogList from './components/LogList.tsx';
+import MindsetAnalysis from './components/MindsetAnalysis.tsx';
+import GeminiCoach from './components/GeminiCoach.tsx';
+import SetupSettings from './components/SetupSettings.tsx';
+import { INITIAL_SETUP_OPTIONS } from './constants.ts';
 
 const App: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'logs' | 'add' | 'settings' | 'mindset'>('dashboard');
@@ -17,7 +17,6 @@ const App: React.FC = () => {
   const [logFilter, setLogFilter] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // 初始化數據
   useEffect(() => {
     const savedTrades = localStorage.getItem('trademind_logs');
     if (savedTrades) {
@@ -32,7 +31,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // 持久化數據
   useEffect(() => {
     localStorage.setItem('trademind_logs', JSON.stringify(trades));
   }, [trades]);
@@ -62,7 +60,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
-      {/* 行動端頂部欄 */}
       <header className="md:hidden glass-nav text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div className="flex items-center gap-2">
           <div className="bg-indigo-500 p-1.5 rounded-lg">
@@ -75,7 +72,6 @@ const App: React.FC = () => {
         </button>
       </header>
 
-      {/* 側邊導航欄 (桌機) & 覆蓋層 (行動) */}
       <nav className={`fixed md:relative inset-y-0 left-0 z-40 w-72 bg-slate-900 text-white p-6 flex flex-col shrink-0 transition-transform duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="hidden md:flex items-center gap-3 mb-10">
           <div className="bg-indigo-500 p-2 rounded-lg shadow-lg shadow-indigo-500/20">
@@ -106,12 +102,10 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      {/* 點擊行動選單外的陰影關閉區 */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
 
-      {/* 主內容區 */}
       <main className="flex-grow p-4 md:p-10 overflow-x-hidden">
         <div className="max-w-6xl mx-auto animate-slide">
           {view === 'dashboard' && (

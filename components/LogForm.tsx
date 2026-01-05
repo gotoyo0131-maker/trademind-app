@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trade, TradeDirection, ErrorCategory } from '../types';
-import { EMOTION_TAGS } from '../constants';
+import { Trade, TradeDirection, ErrorCategory } from '../types.ts';
+import { EMOTION_TAGS } from '../constants.ts';
 
 interface LogFormProps {
   onSave: (trade: Trade) => void;
@@ -36,7 +36,20 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
   });
 
   useEffect(() => {
-    if (initialData) setFormData(initialData);
+    if (initialData) {
+      // 確保 ISO 時間格式可以正確填入 datetime-local (YYYY-MM-DDThh:mm)
+      const formatForInput = (isoStr: string) => {
+        const d = new Date(isoStr);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
+
+      setFormData({
+        ...initialData,
+        entryTime: formatForInput(initialData.entryTime),
+        exitTime: formatForInput(initialData.exitTime),
+      });
+    }
   }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -52,9 +65,11 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
 
     onSave({
       ...formData as Trade,
+      entryTime: new Date(formData.entryTime || "").toISOString(),
+      exitTime: new Date(formData.exitTime || "").toISOString(),
       pnlAmount,
       pnlPercentage,
-      riskRewardRatio: 2 // 簡化處理
+      riskRewardRatio: 2 
     });
   };
 
@@ -79,7 +94,7 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
       <div className="flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-md py-4 z-20 border-b border-slate-200 -mx-4 px-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">{initialData ? '編輯交易' : '新增交易日誌'}</h2>
-          <p className="text-xs text-slate-500 font-medium">嚴格記錄是邁向盈利的第一步。</p>
+          <p className="text-xs text-slate-500 font-medium">嚴格記錄時間與價格是專業交易的基礎。</p>
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={onCancel} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition">取消</button>
@@ -87,9 +102,36 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
       </div>
 
-      {/* 第一維度 */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <SectionTitle num="一" title="基礎交易數據 (Hard Data)" />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <i className="fas fa-clock text-indigo-400"></i> 進場精確時間
+            </label>
+            <input 
+              type="datetime-local" 
+              value={formData.entryTime} 
+              onChange={e => setFormData({...formData, entryTime: e.target.value})} 
+              required 
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium focus:border-indigo-500 transition" 
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <i className="fas fa-flag-checkered text-rose-400"></i> 出場精確時間
+            </label>
+            <input 
+              type="datetime-local" 
+              value={formData.exitTime} 
+              onChange={e => setFormData({...formData, exitTime: e.target.value})} 
+              required 
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium focus:border-indigo-500 transition" 
+            />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase">交易標的</label>
@@ -121,7 +163,6 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
       </section>
 
-      {/* 第二維度 */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <SectionTitle num="二" title="策略與邏輯 (Technical)" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -156,7 +197,6 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
       </section>
 
-      {/* 第三維度 */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <SectionTitle num="三" title="心理狀態與行為 (Subjective)" />
         <div className="space-y-6">
@@ -207,12 +247,11 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
         </div>
       </section>
 
-      {/* 第四維度 */}
       <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <SectionTitle num="四" title="檢討與總結 (Growth)" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">錯誤分類 (最關鍵的一步)</label>
+            <label className="text-xs font-bold text-slate-500 uppercase">錯誤分類</label>
             <select value={formData.errorCategory} onChange={e => setFormData({...formData, errorCategory: e.target.value as ErrorCategory})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-rose-600">
               {Object.values(ErrorCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
@@ -223,7 +262,7 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
           </div>
           <div className="space-y-1 md:col-span-2">
             <label className="text-xs font-bold text-slate-500 uppercase">具體改進措施</label>
-            <textarea rows={2} value={formData.improvements} onChange={e => setFormData({...formData, improvements: e.target.value})} placeholder="例如：當 RSI 超過 80 時，絕對不進場做多..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
+            <textarea rows={2} value={formData.improvements} onChange={e => setFormData({...formData, improvements: e.target.value})} placeholder="例如：下次應在關鍵支撐位確認後再進場..." className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
           </div>
         </div>
       </section>

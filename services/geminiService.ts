@@ -1,11 +1,15 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { Trade } from "../types";
+import { Trade } from "../types.ts";
 
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "目前還沒有交易資料可以分析。請先記錄您的第一筆交易！";
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+  // 安全取得 API KEY，避免 process 未定義時崩潰
+  const apiKey = (typeof process !== 'undefined' ? process.env.API_KEY : '') || "";
+  if (!apiKey) return "系統未設定 API KEY，無法使用 AI 導師功能。";
+
+  const ai = new GoogleGenAI({ apiKey });
   
   const logs = trades.slice(0, 10).map(t => ({
     symbol: t.symbol,

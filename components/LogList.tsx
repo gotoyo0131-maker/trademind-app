@@ -154,39 +154,13 @@ const LogList: React.FC<LogListProps> = ({ trades, onDelete, onEdit, onAddNew, i
                                 </div>
                               </div>
                             </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase">進場圖 (Before)</span>
-                                <div className="bg-white p-1 rounded-lg border border-slate-200 h-32 flex items-center justify-center overflow-hidden">
-                                  {trade.screenshotBefore ? <img src={trade.screenshotBefore} className="max-h-full" alt="Before" /> : <span className="text-xs text-slate-300">無圖</span>}
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase">出場圖 (After)</span>
-                                <div className="bg-white p-1 rounded-lg border border-slate-200 h-32 flex items-center justify-center overflow-hidden">
-                                  {trade.screenshotAfter ? <img src={trade.screenshotAfter} className="max-h-full" alt="After" /> : <span className="text-xs text-slate-300">無圖</span>}
-                                </div>
-                              </div>
-                            </div>
                           </div>
 
                           <div className="space-y-4">
                             <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                              <h5 className="text-[10px] font-bold text-slate-400 uppercase mb-2">情緒與策略總結</h5>
-                              <div className="flex flex-wrap gap-1 mb-3">
-                                {trade.emotions.split(' ').map(tag => tag && (
-                                  <span key={tag} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
+                              <h5 className="text-[10px] font-bold text-slate-400 uppercase mb-2">心理總結</h5>
                               <p className="text-sm text-slate-800 font-medium">{trade.summary}</p>
-                              <p className="text-xs text-slate-500 mt-2 italic leading-relaxed">{trade.improvements}</p>
-                            </div>
-                            <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                               <h5 className="text-[10px] font-bold text-amber-700 uppercase mb-1">錯誤分類</h5>
-                               <p className="text-xs font-bold text-amber-900">{trade.errorCategory}</p>
+                              <p className="text-xs text-slate-500 mt-2 italic">{trade.improvements}</p>
                             </div>
                           </div>
                         </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trade, TradeDirection, ErrorCategory } from './types.ts';
+import { Trade } from './types.ts';
 import Dashboard from './components/Dashboard.tsx';
 import LogForm from './components/LogForm.tsx';
 import LogList from './components/LogList.tsx';
@@ -39,7 +39,7 @@ const App: React.FC = () => {
     localStorage.setItem('trademind_setups', JSON.stringify(setupOptions));
   }, [setupOptions]);
 
-  const handleAddTrade = (trade: Trade) => {
+  const handleSaveTrade = (trade: Trade) => {
     if (editingTrade) {
       setTrades(prev => prev.map(t => t.id === trade.id ? trade : t));
       setEditingTrade(null);
@@ -60,21 +60,21 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
-      <header className="md:hidden glass-nav text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
+      {/* 行動端標題列 */}
+      <header className="md:hidden bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div className="flex items-center gap-2">
-          <div className="bg-indigo-500 p-1.5 rounded-lg">
-            <i className="fas fa-chart-line text-sm"></i>
-          </div>
-          <h1 className="text-lg font-bold tracking-tight">TradeMind</h1>
+          <i className="fas fa-chart-line text-indigo-400"></i>
+          <h1 className="text-lg font-bold">TradeMind</h1>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-xl">
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2">
           <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
         </button>
       </header>
 
+      {/* 側邊導航欄 */}
       <nav className={`fixed md:relative inset-y-0 left-0 z-40 w-72 bg-slate-900 text-white p-6 flex flex-col shrink-0 transition-transform duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="hidden md:flex items-center gap-3 mb-10">
-          <div className="bg-indigo-500 p-2 rounded-lg shadow-lg shadow-indigo-500/20">
+          <div className="bg-indigo-600 p-2 rounded-lg">
             <i className="fas fa-chart-line text-xl"></i>
           </div>
           <h1 className="text-xl font-bold tracking-tight">TradeMind AI</h1>
@@ -85,34 +85,35 @@ const App: React.FC = () => {
             <button 
               key={item.id}
               onClick={() => { setView(item.id as any); setEditingTrade(null); setIsMobileMenuOpen(false); }}
-              className={`flex items-center gap-3 p-4 rounded-xl transition-all duration-200 ${view === item.id ? 'bg-indigo-600 shadow-xl shadow-indigo-600/20 font-bold' : 'hover:bg-white/5 text-slate-400 hover:text-white'}`}
+              className={`flex items-center gap-3 p-4 rounded-xl transition-all ${view === item.id ? 'bg-indigo-600 font-bold shadow-lg shadow-indigo-600/20' : 'hover:bg-white/5 text-slate-400 hover:text-white'}`}
             >
               <i className={`fas ${item.icon} w-5 text-center`}></i> {item.label}
             </button>
           ))}
           
-          <div className="mt-8 pt-6 border-t border-slate-800/50 space-y-4">
-            <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] px-3">AI 智慧教練</p>
+          <div className="mt-8 pt-6 border-t border-slate-800">
             <GeminiCoach trades={trades} />
           </div>
         </div>
 
-        <div className="mt-auto pt-6 border-t border-slate-800/50 text-center">
-           <p className="text-[10px] text-slate-500 font-medium">資料安全：僅存於此裝置</p>
+        <div className="mt-auto pt-6 border-t border-slate-800 text-[10px] text-slate-500 text-center">
+           數據僅儲存於此裝置 · v1.2.2
         </div>
       </nav>
 
+      {/* 行動端遮罩 */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
+        <div className="fixed inset-0 bg-black/60 z-30 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
 
-      <main className="flex-grow p-4 md:p-10 overflow-x-hidden">
-        <div className="max-w-6xl mx-auto animate-slide">
+      {/* 主要內容區 */}
+      <main className="flex-grow p-4 md:p-10">
+        <div className="max-w-6xl mx-auto">
           {view === 'dashboard' && (
             <Dashboard 
               trades={trades} 
               onViewLogs={() => setView('logs')} 
-              onDateClick={(date) => { setLogFilter(date); setView('logs'); }}
+              onDateClick={(d) => { setLogFilter(d); setView('logs'); }} 
             />
           )}
           
@@ -121,7 +122,7 @@ const App: React.FC = () => {
           {view === 'logs' && (
             <LogList 
               trades={trades} 
-              onDelete={(id) => setTrades(trades.filter(t => t.id !== id))} 
+              onDelete={(id) => setTrades(prev => prev.filter(t => t.id !== id))} 
               onEdit={(t) => { setEditingTrade(t); setView('add'); }}
               onAddNew={() => { setEditingTrade(null); setView('add'); }}
               initialFilter={logFilter}
@@ -130,7 +131,7 @@ const App: React.FC = () => {
 
           {view === 'add' && (
             <LogForm 
-              onSave={handleAddTrade} 
+              onSave={handleSaveTrade} 
               onCancel={() => setView('logs')} 
               initialData={editingTrade}
               setupOptions={setupOptions}
@@ -142,13 +143,7 @@ const App: React.FC = () => {
               options={setupOptions} 
               trades={trades}
               onUpdate={setSetupOptions} 
-              onResetData={() => {
-                if(confirm('確定清除所有本地資料嗎？')) {
-                  setTrades([]);
-                  localStorage.clear();
-                  setView('dashboard');
-                }
-              }}
+              onResetData={() => { if(confirm('確定清除所有資料？')) { setTrades([]); localStorage.clear(); setView('dashboard'); } }}
               onImportData={(t, s) => { setTrades(t); setSetupOptions(s); setView('dashboard'); }}
             />
           )}

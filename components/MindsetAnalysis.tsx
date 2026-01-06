@@ -16,15 +16,14 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyStatus, setApiKeyStatus] = useState<'checking' | 'detected' | 'missing'>('checking');
+  const [showGuide, setShowGuide] = useState(false);
 
-  // 診斷：檢查環境變數是否存在
   useEffect(() => {
     const checkKey = () => {
-      // 模擬檢查環境變數 (在客戶端環境中，這通常取決於編譯時注入)
-      if (process.env.API_KEY) {
+      // 在 Vercel 環境中，process.env.API_KEY 會在編譯時注入
+      if (process.env.API_KEY && process.env.API_KEY !== "") {
         setApiKeyStatus('detected');
       } else {
-        // 如果是本地開發或尚未注入，顯示缺失
         setApiKeyStatus('missing');
       }
     };
@@ -39,9 +38,10 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
       setAiAnalysis(result);
     } catch (e: any) {
       if (e.message === "API_KEY_MISSING") {
-        setError("錯誤：Vercel 讀不到 API 金鑰。請確認已設定 API_KEY 並『重新部署』專案。");
+        setError("錯誤：系統讀取不到 API_KEY。");
+        setShowGuide(true);
       } else {
-        setError("連線失敗：請檢查您的 API 金鑰是否有效 (是否過期或複製錯誤)。");
+        setError("連線失敗：請檢查金鑰權限或額度是否已達上限。");
       }
     } finally {
       setIsAnalyzing(false);
@@ -87,7 +87,6 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-700">
-      {/* AI Trading Coach Section with Connection Status */}
       <section className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
         
@@ -103,14 +102,42 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
               </div>
             </div>
 
-            {/* 狀態燈號 - 讓使用者確認設定是否正確 */}
             <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10">
-              <span className="text-[10px] font-black uppercase text-slate-400">金鑰狀態:</span>
-              {apiKeyStatus === 'checking' && <span className="flex items-center gap-2 text-[10px] font-bold text-slate-400"><i className="fas fa-spinner fa-spin"></i> 偵測中</span>}
-              {apiKeyStatus === 'detected' && <span className="flex items-center gap-2 text-[10px] font-bold text-emerald-400"><i className="fas fa-check-circle"></i> 設定正確</span>}
-              {apiKeyStatus === 'missing' && <span className="flex items-center gap-2 text-[10px] font-bold text-rose-400"><i className="fas fa-exclamation-triangle"></i> 讀取不到</span>}
+              <span className="text-[10px] font-black uppercase text-slate-400">連線診斷:</span>
+              {apiKeyStatus === 'detected' ? (
+                <span className="flex items-center gap-2 text-[10px] font-bold text-emerald-400"><i className="fas fa-check-circle"></i> 設定完全正確</span>
+              ) : (
+                <button onClick={() => setShowGuide(!showGuide)} className="flex items-center gap-2 text-[10px] font-bold text-rose-400 hover:underline">
+                  <i className="fas fa-exclamation-triangle"></i> 設定似乎有誤 (點擊查看如何修正)
+                </button>
+              )}
             </div>
           </div>
+
+          {showGuide && apiKeyStatus === 'missing' && (
+            <div className="mb-8 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-6 animate-in slide-in-from-top-4">
+              <h4 className="text-sm font-bold text-indigo-300 mb-4 flex items-center gap-2">
+                <i className="fas fa-tools"></i> 為什麼我看到「讀取不到」？
+              </h4>
+              <ul className="space-y-3 text-xs text-slate-300">
+                <li className="flex gap-3">
+                  <span className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] flex-shrink-0">1</span>
+                  <p><b>環境設定錯誤 (最常見)</b>：您的截圖顯示 Environment 只有 <span className="text-amber-400">Preview</span>。請點擊該變數的 Edit，將 <span className="text-emerald-400 font-bold">Production</span> 也勾選起來。</p>
+                </li>
+                <li className="flex gap-3">
+                  <span className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] flex-shrink-0">2</span>
+                  <p><b>尚未重新部署</b>：設定完後，必須去 Vercel 的 Deployments 頁面點擊 <span className="bg-white/10 px-2 py-0.5 rounded">Redeploy</span>。金鑰只會在重新編譯網頁時被放進去。</p>
+                </li>
+                <li className="flex gap-3">
+                  <span className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] flex-shrink-0">3</span>
+                  <p><b>名稱錯誤</b>：請確保變數名稱完全等於 <code className="text-indigo-400 font-bold">API_KEY</code> (大寫且沒有多餘空格)。</p>
+                </li>
+              </ul>
+              <button onClick={() => setShowGuide(false)} className="mt-6 text-[10px] font-bold text-slate-500 hover:text-white uppercase tracking-widest">
+                我知道了，關閉引導
+              </button>
+            </div>
+          )}
 
           {!aiAnalysis ? (
             <div className="space-y-4">
@@ -129,11 +156,6 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
                     <><i className="fas fa-bolt"></i> 開始行為診斷</>
                   )}
                 </button>
-                {apiKeyStatus === 'missing' && (
-                  <p className="text-[10px] text-amber-400/80 italic flex items-center gap-2">
-                    <i className="fas fa-info-circle"></i> 提示：若您已在 Vercel 設定 API_KEY，請點擊 "Redeploy" 才會生效。
-                  </p>
-                )}
               </div>
               {error && (
                 <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl">

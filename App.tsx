@@ -51,7 +51,7 @@ const App: React.FC = () => {
     if (currentUser) {
       document.title = `${currentUser.username} 交易日誌`;
     } else {
-      document.title = 'TradeMind AI';
+      document.title = 'TradeMind Professional';
     }
   }, [currentUser]);
 
@@ -142,9 +142,9 @@ const App: React.FC = () => {
           <NavItem id="dashboard" icon="fa-th-large" label="績效總覽" />
           <NavItem id="logs" icon="fa-list" label="交易日誌" />
           <NavItem id="add" icon="fa-plus-circle" label="新增交易" />
-          <NavItem id="mindset" icon="fa-brain" label="心理分析" />
+          <NavItem id="mindset" icon="fa-brain" label="行為心理" />
           {currentUser.role === 'admin' && (
-            <NavItem id="users" icon="fa-users-cog" label="用戶管理" />
+            <NavItem id="users" icon="fa-users-cog" label="帳號管理" />
           )}
           <NavItem id="settings" icon="fa-cog" label="系統設置" />
         </nav>
@@ -231,7 +231,7 @@ const App: React.FC = () => {
           <button onClick={() => setActiveTab('dashboard')} className={`p-2 ${activeTab === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'}`}><i className="fas fa-th-large"></i></button>
           <button onClick={() => setActiveTab('logs')} className={`p-2 ${activeTab === 'logs' ? 'text-indigo-600' : 'text-slate-400'}`}><i className="fas fa-list"></i></button>
           <button onClick={() => setActiveTab('add')} className={`p-2 ${activeTab === 'add' ? 'text-indigo-600' : 'text-slate-400'}`}><i className="fas fa-plus-circle"></i></button>
-          {currentUser.role === 'admin' && <button onClick={() => setActiveTab('users')} className={`p-2 ${activeTab === 'users' ? 'text-indigo-600' : 'text-slate-400'}`}><i className="fas fa-users-cog"></i></button>}
+          <button onClick={() => setActiveTab('mindset')} className={`p-2 ${activeTab === 'mindset' ? 'text-indigo-600' : 'text-slate-400'}`}><i className="fas fa-brain"></i></button>
           <button onClick={handleLogout} className="p-2 text-rose-500"><i className="fas fa-sign-out-alt"></i></button>
       </nav>
     </div>

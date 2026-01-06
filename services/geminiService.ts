@@ -6,10 +6,10 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "尚無數據可供分析。";
 
   // 嚴格遵守指令：從 process.env.API_KEY 獲取金鑰
-  // 在瀏覽器環境中，我們確保它不會因為 process 未定義而崩潰
-  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : (window as any).process?.env?.API_KEY;
+  // 使用定義檢查以確保在編譯階段不會報錯
+  const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : (window as any).process?.env?.API_KEY;
 
-  if (!apiKey || apiKey === "undefined") {
+  if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
     throw new Error("API_KEY_MISSING");
   }
 

@@ -1,14 +1,11 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Trade } from '../types';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   Cell
 } from 'recharts';
 import { analyzeTradeHistory } from '../services/geminiService';
-
-// 宣告 process 避免編譯錯誤
-declare const process: any;
 
 interface MindsetAnalysisProps {
   trades: Trade[];
@@ -18,32 +15,6 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [apiKeyStatus, setApiKeyStatus] = useState<'checking' | 'detected' | 'missing'>('checking');
-  const [showGuide, setShowGuide] = useState(false);
-
-  const checkKey = () => {
-    let key = "";
-    try {
-      key = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : "";
-      if (!key || key === "undefined") {
-        key = (window as any).process?.env?.API_KEY || "";
-      }
-    } catch (e) {
-      key = "";
-    }
-    
-    if (key && key !== "undefined" && key.length > 10) {
-      setApiKeyStatus('detected');
-    } else {
-      setApiKeyStatus('missing');
-    }
-  };
-
-  useEffect(() => {
-    checkKey();
-    const interval = setInterval(checkKey, 2000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleStartAnalysis = async () => {
     setIsAnalyzing(true);
@@ -52,13 +23,13 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
       const result = await analyzeTradeHistory(trades);
       setAiAnalysis(result);
     } catch (e: any) {
+      console.error("Analysis Error:", e);
       if (e.message === "API_KEY_MISSING") {
-        setError("讀取不到金鑰。請確認已執行 Trigger Deploy。");
-        setShowGuide(true);
+        setError("讀取不到 API 金鑰。請確認已在 Netlify 設定變數並完成部署。");
       } else if (e.message === "API_KEY_INVALID") {
-        setError("金鑰驗證失敗，請檢查 API_KEY 是否正確。");
+        setError("API 金鑰無效或不支援此模型。請確認金鑰權限。");
       } else {
-        setError(`錯誤: ${e.message || "請檢查連線"}`);
+        setError(`分析失敗: ${e.message || "未知錯誤"}`);
       }
     } finally {
       setIsAnalyzing(false);
@@ -88,7 +59,7 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
   if (trades.length === 0) return (
     <div className="flex flex-col items-center justify-center h-96 text-slate-400">
       <i className="fas fa-brain text-6xl mb-4 opacity-20"></i>
-      <p className="font-bold text-sm">尚無心理數據。</p>
+      <p className="font-bold">尚無心理數據。請開始記錄包含情緒標籤的交易。</p>
     </div>
   );
 
@@ -100,120 +71,64 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-10 mb-14">
             <div className="flex items-center gap-6">
-              <div className="w-24 h-24 bg-indigo-600 rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-indigo-400/20">
-                <i className="fas fa-robot text-white text-5xl"></i>
+              <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center shadow-2xl border border-indigo-400/20">
+                <i className="fas fa-robot text-white text-4xl"></i>
               </div>
               <div>
-                <h3 className="text-4xl font-black tracking-tight flex items-center gap-5">
-                  AI 交易行為導師
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${apiKeyStatus === 'detected' ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,1)]' : 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,1)] animate-pulse'}`}></div>
-                    <span className={`text-xs font-black uppercase tracking-widest ${apiKeyStatus === 'detected' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {apiKeyStatus === 'detected' ? 'ONLINE' : 'OFFLINE'}
-                    </span>
-                  </div>
-                </h3>
-                <p className="text-indigo-300/60 text-xs font-bold uppercase tracking-[0.5em] mt-3">Quantum Engine v3.4</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <div className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
-                <span className="text-[10px] font-black text-slate-500 uppercase">系統狀態</span>
-                <span className={`text-xs font-bold ${apiKeyStatus === 'detected' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {apiKeyStatus === 'detected' ? '金鑰已連接' : '等待部署生效'}
-                </span>
+                <h3 className="text-3xl font-black tracking-tight">AI 交易行為導師</h3>
+                <p className="text-indigo-300/60 text-[10px] font-bold uppercase tracking-[0.5em] mt-2">Intelligence Engine v3.5</p>
               </div>
             </div>
           </div>
 
-          {showGuide && apiKeyStatus === 'missing' && (
-            <div className="mb-12 bg-indigo-500/10 border border-indigo-500/20 rounded-[2.5rem] p-10 animate-in zoom-in duration-500">
-              <div className="flex items-center justify-between mb-8">
-                <h4 className="text-xl font-black text-indigo-300 flex items-center gap-4">
-                  <i className="fas fa-rocket"></i> 設定正確，請完成部署
-                </h4>
-                <button onClick={() => setShowGuide(false)} className="text-slate-500 hover:text-white transition-colors">
-                  <i className="fas fa-times text-2xl"></i>
-                </button>
-              </div>
-              
-              <div className="bg-white/5 p-8 rounded-2xl border border-white/5 space-y-4">
-                <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                  您的截圖顯示變數已儲存。現在請點擊左側選單的 <b>Deploys</b> 圖示，然後點擊右方的 <b>Trigger deploy</b> { "->" } <b>Deploy site</b>。
-                </p>
-                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                  <p className="text-xs text-amber-300 font-bold">
-                    <i className="fas fa-info-circle mr-2"></i> 提示：網頁必須重新建置（Rebuild），新的金鑰才會在執行期被讀取。
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {!aiAnalysis ? (
-            <div className="space-y-12">
+            <div className="space-y-10">
               <div className="max-w-3xl">
-                <p className="text-slate-100 text-3xl md:text-4xl font-bold leading-tight mb-8">
+                <p className="text-slate-100 text-3xl font-bold leading-tight mb-6">
                   「診斷交易靈魂，尋找獲利缺口。」
                 </p>
-                <div className="flex gap-4">
-                   <div className="w-1 bg-indigo-600 rounded-full"></div>
-                   <p className="text-slate-400 text-lg leading-relaxed font-medium">
-                     我將深度掃描您的交易行為與情緒標籤，提供精準的行為校正建議。
-                   </p>
-                </div>
+                <p className="text-slate-400 text-lg font-medium border-l-2 border-indigo-600 pl-4">
+                  我將掃描您的交易行為，提供犀利的行為校正建議。
+                </p>
               </div>
               
-              <div className="flex items-center gap-8">
+              <div className="flex flex-col gap-6">
                 <button 
                   onClick={handleStartAnalysis}
-                  disabled={isAnalyzing || apiKeyStatus === 'missing'}
-                  className={`px-16 py-8 rounded-[2rem] font-black text-xl transition-all flex items-center justify-center gap-5 shadow-2xl ${
-                    apiKeyStatus === 'detected' 
-                      ? 'bg-indigo-600 hover:bg-indigo-500 text-white hover:-translate-y-1 active:scale-95' 
-                      : 'bg-slate-800 text-slate-600 cursor-not-allowed opacity-50'
-                  }`}
+                  disabled={isAnalyzing}
+                  className="px-12 py-6 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white rounded-[2rem] font-black text-xl transition-all shadow-2xl flex items-center justify-center gap-4 w-fit"
                 >
                   {isAnalyzing ? (
-                    <><i className="fas fa-spinner fa-spin"></i> 正在透視數據...</>
+                    <><i className="fas fa-spinner fa-spin"></i> 分析中...</>
                   ) : (
                     <><i className="fas fa-bolt text-amber-400"></i> 開始 AI 診斷分析</>
                   )}
                 </button>
-                {apiKeyStatus === 'missing' && (
-                  <div className="flex items-center gap-4 text-amber-400 animate-pulse">
-                    <i className="fas fa-arrow-left text-2xl"></i>
-                    <span className="text-sm font-black uppercase tracking-widest">請先重新部署網站</span>
+
+                {error && (
+                  <div className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-2xl max-w-xl animate-in slide-in-from-left-4">
+                    <p className="text-rose-400 text-sm font-bold flex items-center gap-3">
+                      <i className="fas fa-exclamation-circle"></i> {error}
+                    </p>
+                    <p className="text-rose-400/60 text-[10px] mt-2 leading-relaxed">
+                      提示：如果您剛在 Netlify 設定好環境變數，請務必點擊 "Deploys" -> "Trigger deploy" -> "Deploy site" 重新發布，設定才會生效。
+                    </p>
                   </div>
                 )}
               </div>
-              
-              {error && (
-                <div className="bg-rose-500/10 border border-rose-500/20 p-8 rounded-[2rem] max-w-2xl flex items-start gap-5">
-                  <i className="fas fa-exclamation-triangle text-rose-500 text-2xl mt-1"></i>
-                  <div>
-                    <h5 className="font-black text-rose-400 text-lg mb-2">發生錯誤</h5>
-                    <p className="text-rose-400/70 text-sm font-bold leading-relaxed">{error}</p>
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-10 duration-1000">
-              <div className="bg-[#1e293b]/50 border border-white/10 rounded-[3rem] p-12 mb-10 shadow-2xl relative group backdrop-blur-2xl">
-                <div className="absolute -top-6 left-16 px-8 py-3 bg-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] shadow-2xl border border-indigo-400/30">
-                  BEHAVIORAL REPORT
-                </div>
-                <p className="whitespace-pre-wrap text-slate-100 text-2xl leading-relaxed font-medium relative z-10">
+              <div className="bg-[#1e293b]/50 border border-white/10 rounded-[2.5rem] p-10 mb-8 shadow-2xl backdrop-blur-2xl">
+                <p className="whitespace-pre-wrap text-slate-100 text-xl leading-relaxed font-medium">
                   {aiAnalysis}
                 </p>
               </div>
               <button 
                 onClick={() => setAiAnalysis(null)}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white px-12 py-5 rounded-2xl text-xs font-black transition-all flex items-center gap-4 uppercase"
+                className="text-slate-400 hover:text-white px-8 py-3 rounded-xl border border-white/10 text-xs font-bold transition flex items-center gap-3"
               >
-                <i className="fas fa-sync-alt"></i> 重啟新的診斷
+                <i className="fas fa-sync-alt"></i> 重啟分析
               </button>
             </div>
           )}
@@ -222,9 +137,8 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl">
-          <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-10 flex items-center gap-3">
-            <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-            情緒標籤與盈虧分析
+          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-10 flex items-center gap-3">
+            情緒與盈虧分析
           </h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -232,7 +146,7 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                 <XAxis type="number" fontSize={10} axisLine={false} tickLine={false} />
                 <YAxis dataKey="name" type="category" fontSize={14} width={100} axisLine={false} tickLine={false} className="font-bold text-slate-700" />
-                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '20px', border: 'none' }} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '15px', border: 'none' }} />
                 <Bar dataKey="avgPnl" radius={[0, 10, 10, 0]}>
                   {analysis?.emotionData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.avgPnl >= 0 ? '#10b981' : '#f43f5e'} />
@@ -243,18 +157,14 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
           </div>
         </div>
 
-        <div className="bg-indigo-900 text-white p-10 rounded-[2.5rem] flex flex-col justify-center relative overflow-hidden shadow-2xl">
-           <div className="absolute top-0 right-0 p-8 opacity-10">
-             <i className="fas fa-award text-9xl"></i>
+        <div className="bg-indigo-900 text-white p-10 rounded-[2.5rem] flex flex-col justify-center shadow-2xl relative overflow-hidden">
+           <i className="fas fa-award absolute -right-4 -bottom-4 text-9xl opacity-5"></i>
+           <p className="text-indigo-300 font-black uppercase text-[10px] mb-4">執行紀律評分</p>
+           <div className="flex items-baseline gap-2 mb-4">
+             <h4 className="text-7xl font-black">{(analysis ? analysis.avgExecution * 20 : 0).toFixed(0)}</h4>
+             <span className="text-2xl font-black text-indigo-400">%</span>
            </div>
-           <p className="text-indigo-300 font-black uppercase tracking-[0.3em] text-[10px] mb-4">執行紀律評分</p>
-           <div className="flex items-baseline gap-2 mb-6">
-             <h4 className="text-8xl font-black">{(analysis ? analysis.avgExecution * 20 : 0).toFixed(0)}</h4>
-             <span className="text-3xl font-black text-indigo-400">%</span>
-           </div>
-           <p className="text-indigo-100/70 text-sm leading-loose font-medium">
-             這是根據您每筆交易的紀律自我評分算出的平均值。
-           </p>
+           <p className="text-indigo-100/60 text-xs font-medium">這是基於您的執行評分所計算出的紀律水平。</p>
         </div>
       </div>
     </div>

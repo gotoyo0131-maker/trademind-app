@@ -2,26 +2,14 @@
 import { GoogleGenAI } from "@google/genai";
 import { Trade } from "../types";
 
-// 告訴 TypeScript process 變數在環境中是存在的
-declare const process: any;
-
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
-  if (trades.length === 0) return "目前還沒有交易數據可以分析。";
+  if (trades.length === 0) return "尚無數據可供分析。";
 
-  let apiKey = "";
-  try {
-    // 優先嘗試標準讀取方式
-    apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : "";
-    
-    // 如果是 undefined 或是字串 "undefined"，嘗試從全局視窗讀取
-    if (!apiKey || apiKey === "undefined") {
-      apiKey = (window as any).process?.env?.API_KEY || "";
-    }
-  } catch (e) {
-    console.warn("Env access warning:", e);
-  }
-  
-  if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
+  // 嚴格遵守指令：從 process.env.API_KEY 獲取金鑰
+  // 在瀏覽器環境中，我們確保它不會因為 process 未定義而崩潰
+  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : (window as any).process?.env?.API_KEY;
+
+  if (!apiKey || apiKey === "undefined") {
     throw new Error("API_KEY_MISSING");
   }
 
@@ -38,13 +26,14 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   }));
 
   const prompt = `
-    你是一位冷靜、專業的交易心理教練。請根據以下交易數據提供分析：
+    你是一位極其專業且言詞犀利的交易心理導師。
+    請分析以下交易數據並提供診斷回覆（繁體中文）：
     ${JSON.stringify(tradeSummary, null, 2)}
     
-    請以繁體中文回覆：
-    1. 【核心病灶】：點破最大的心理弱點。
-    2. 【導師建議】：給出 2 個行動指令。
-    3. 【金句】：送他一句提醒的話。
+    回覆格式：
+    1. 【核心病灶】：一句話指出致命傷。
+    2. 【導師建議】：提供 2 個可執行的改進方案。
+    3. 【交易格言】：送他一句話。
   `;
 
   try {
@@ -52,14 +41,15 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
-        temperature: 0.8,
+        temperature: 0.7,
         thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
-    return response.text || "AI 導師暫時無法回應。";
+    return response.text || "無法產出分析內容。";
   } catch (error: any) {
-    if (error.status === 403 || error.status === 401) {
+    console.error("Gemini API Error:", error);
+    if (error.message?.includes("403") || error.message?.includes("401")) {
       throw new Error("API_KEY_INVALID");
     }
     throw error;

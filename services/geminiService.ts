@@ -5,12 +5,12 @@ import { Trade } from "../types";
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "尚無交易數據可供分析。";
 
-  // 1. 嘗試讀取環境變數 (Vercel 雲端環境常因安全限制為 undefined)
+  // 根據規範：API Key 必須由 process.env.API_KEY 獲取
+  // 建立新實例以確保使用最新注入的金鑰
   const apiKey = process.env.API_KEY;
   
-  // 如果連環境變數都沒有，拋出特定錯誤代碼
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error("AUTH_REQUIRED");
+    throw new Error("API_KEY_MISSING");
   }
 
   const ai = new GoogleGenAI({ apiKey: apiKey });
@@ -30,7 +30,7 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
     請提供：
     1. 紀律診斷：指出執行上的核心問題。
     2. 行動方案：給出 3 個具體改進動作。
-    請用繁體中文，語氣犀利且精簡。
+    請用繁體中文，語氣精簡犀利。
   `;
 
   try {
@@ -39,17 +39,20 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
       contents: prompt,
       config: {
         temperature: 0.7,
+        thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
-    return response.text || "AI 無法生成建議，請稍後再試。";
+    return response.text || "AI 暫時無法生成建議。";
   } catch (error: any) {
-    console.error("Gemini Error:", error);
-    const msg = error.message || "";
-    // 如果是權限錯誤，也引導使用者重新選擇金鑰
-    if (msg.includes("403") || msg.includes("401") || msg.includes("not found")) {
-      throw new Error("AUTH_REQUIRED");
+    console.error("Gemini API Error:", error);
+    const errorMessage = error.message || String(error);
+    
+    // 規範：若包含 "Requested entity was not found"，代表需要重新選擇 Key
+    if (errorMessage.includes("Requested entity was not found")) {
+      throw new Error("ENTITY_NOT_FOUND");
     }
-    throw new Error(`連線失敗: ${msg}`);
+    
+    throw new Error(errorMessage);
   }
 };

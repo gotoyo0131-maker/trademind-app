@@ -5,15 +5,14 @@ import { Trade } from "../types";
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "尚無交易數據可供分析。";
 
-  // 1. 優先嘗試獲取環境變數
+  // 1. 嘗試讀取環境變數 (Vercel 雲端環境常因安全限制為 undefined)
   const apiKey = process.env.API_KEY;
   
+  // 如果連環境變數都沒有，拋出特定錯誤代碼
   if (!apiKey || apiKey.trim() === '') {
-    // 拋出特定錯誤，讓 UI 知道是變數缺失
-    throw new Error("MISSING_ENV_KEY");
+    throw new Error("AUTH_REQUIRED");
   }
 
-  // 每次呼叫都重新建立實例，確保抓到最新的 key (尤其是手動連結後)
   const ai = new GoogleGenAI({ apiKey: apiKey });
   
   const tradeSummary = trades.slice(-10).map(t => ({
@@ -25,17 +24,13 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   }));
 
   const prompt = `
-    你是一位專業的交易心理導師與績效分析師。請根據以下交易紀錄，為使用者提供精簡、犀利且具建設性的分析。
-    
-    最近 10 筆交易摘要：
+    你是一位專業的交易心理導師。請根據以下交易紀錄進行分析：
     ${JSON.stringify(tradeSummary, null, 2)}
     
-    請分析：
-    1. 使用者的執行紀律趨勢。
-    2. 盈虧與情緒標籤的關聯（是否有特定的負面情緒導致虧損？）。
-    3. 給出 3 個具體的行動建議，幫助使用者改善下一週的績效。
-    
-    請用繁體中文回答，口吻專業且帶有激勵感。
+    請提供：
+    1. 紀律診斷：指出執行上的核心問題。
+    2. 行動方案：給出 3 個具體改進動作。
+    請用繁體中文，語氣犀利且精簡。
   `;
 
   try {
@@ -44,27 +39,17 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
       contents: prompt,
       config: {
         temperature: 0.7,
-        thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
-    if (!response.text) {
-      throw new Error("AI 返回了空內容，請重試。");
-    }
-
-    return response.text;
+    return response.text || "AI 無法生成建議，請稍後再試。";
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    const rawMessage = error.message || String(error);
-    
-    // 處理常見的 API 錯誤
-    if (rawMessage.includes("Requested entity was not found")) {
-      throw new Error("MODEL_NOT_FOUND: 您選擇的金鑰不支援 Gemini 3 模型，請確保金鑰來自付費專案。");
+    console.error("Gemini Error:", error);
+    const msg = error.message || "";
+    // 如果是權限錯誤，也引導使用者重新選擇金鑰
+    if (msg.includes("403") || msg.includes("401") || msg.includes("not found")) {
+      throw new Error("AUTH_REQUIRED");
     }
-    if (rawMessage.includes("API key not valid")) {
-      throw new Error("INVALID_KEY: 金鑰無效或已過期。");
-    }
-    
-    throw new Error(`API 連線失敗: ${rawMessage}`);
+    throw new Error(`連線失敗: ${msg}`);
   }
 };

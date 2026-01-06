@@ -2,19 +2,26 @@
 import { GoogleGenAI } from "@google/genai";
 import { Trade } from "../types";
 
-export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
-  if (trades.length === 0) return "目前還沒有交易數據可以分析。請先記錄幾筆交易吧！";
+// 告訴 TypeScript process 變數在環境中是存在的
+declare const process: any;
 
-  // 安全地讀取環境變數，防止在某些 Build 環境下 process 未定義導致崩潰
+export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
+  if (trades.length === 0) return "目前還沒有交易數據可以分析。";
+
   let apiKey = "";
   try {
-    apiKey = process.env.API_KEY || "";
+    // 優先嘗試標準讀取方式
+    apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : "";
+    
+    // 如果是 undefined 或是字串 "undefined"，嘗試從全局視窗讀取
+    if (!apiKey || apiKey === "undefined") {
+      apiKey = (window as any).process?.env?.API_KEY || "";
+    }
   } catch (e) {
-    apiKey = (window as any).process?.env?.API_KEY || "";
+    console.warn("Env access warning:", e);
   }
   
   if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
-    console.error("Critical: API_KEY is missing.");
     throw new Error("API_KEY_MISSING");
   }
 
@@ -31,15 +38,13 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   }));
 
   const prompt = `
-    你是一位冷靜、毒舌但極其專業的交易心理教練。請根據以下交易者的近期數據進行「靈魂拷問」與「戰術指導」：
+    你是一位冷靜、專業的交易心理教練。請根據以下交易數據提供分析：
     ${JSON.stringify(tradeSummary, null, 2)}
     
-    請以繁體中文回覆，包含：
-    1. 【核心病灶】：用一句話點破該交易者目前最大的心理或執行弱點。
-    2. 【導師建議】：給出 2 個立即生效的行動指令。
-    3. 【金句】：送他一句能在螢幕前提醒自己的話。
-    
-    語氣要專業且直接，不要廢話。
+    請以繁體中文回覆：
+    1. 【核心病灶】：點破最大的心理弱點。
+    2. 【導師建議】：給出 2 個行動指令。
+    3. 【金句】：送他一句提醒的話。
   `;
 
   try {
@@ -52,9 +57,8 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
       },
     });
 
-    return response.text || "AI 導師正在休息，請稍後再試。";
+    return response.text || "AI 導師暫時無法回應。";
   } catch (error: any) {
-    console.error("Gemini API Error Detail:", error);
     if (error.status === 403 || error.status === 401) {
       throw new Error("API_KEY_INVALID");
     }

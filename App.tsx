@@ -77,6 +77,14 @@ const App: React.FC = () => {
   }, [trades]);
 
   useEffect(() => {
+    localStorage.setItem('trademind_setups', JSON.stringify(setups));
+  }, [setups]);
+
+  useEffect(() => {
+    localStorage.setItem('trademind_symbols', JSON.stringify(symbols));
+  }, [symbols]);
+
+  useEffect(() => {
     localStorage.setItem('trademind_users', JSON.stringify(users));
   }, [users]);
 
@@ -216,12 +224,17 @@ const App: React.FC = () => {
           <SetupSettings 
             options={setups} 
             symbolOptions={symbols} 
-            trades={userTrades} 
+            trades={trades} // 這裡傳遞全局 trades 用於備份
             currentUserId={currentUser.id} 
             onUpdate={setSetups} 
             onUpdateSymbols={setSymbols} 
             onResetData={() => { if(confirm('重置後將清空所有交易資料，確定嗎？')) { setTrades([]); } }} 
-            onImportData={(t) => { setTrades(t); setActiveTab('dashboard'); }} 
+            onImportData={(data) => { 
+              setTrades(data.trades); 
+              setSetups(data.setups);
+              setSymbols(data.symbols);
+              setActiveTab('dashboard'); 
+            }} 
           />
         )}
       </main>

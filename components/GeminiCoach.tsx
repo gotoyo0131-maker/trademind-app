@@ -26,9 +26,9 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
   const [copied, setCopied] = useState(false);
 
   const loadingMessages = [
-    "正在讀取交易紀錄...",
-    "分析心理標籤...",
-    "產出導師建議..."
+    "正在診斷交易行為...",
+    "調閱心理導師數據...",
+    "產出改進方案..."
   ];
 
   useEffect(() => {
@@ -56,7 +56,7 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
       if (msg === "API_KEY_MISSING" || msg === "ENTITY_NOT_FOUND") {
         setStatus('NEED_KEY');
         if (msg === "ENTITY_NOT_FOUND") {
-          setErrorDetail("目前的金鑰不支援此模型（Gemini 3）。請點擊下方按鈕，選擇一個『已啟用付費(Paid)』或正確權限的 Google 專案金鑰。");
+          setErrorDetail("目前的金鑰不支援 Gemini 3。請確認您在 Vercel 設定的是正確的金鑰，或點擊下方連結手動授權。");
         }
       } else {
         setStatus('ERROR');
@@ -67,11 +67,10 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
     }
   }, [trades]);
 
-  const handleLinkKey = async () => {
+  const handleManualLink = async () => {
     if (window.aistudio) {
       try {
         await window.aistudio.openSelectKey();
-        // 規範：觸發 openSelectKey 後應假設成功並直接嘗試下一步
         setStatus('IDLE');
         performAnalysis();
       } catch (e) {
@@ -88,7 +87,7 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
         <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-lg">
           <i className="fas fa-robot text-xs"></i>
         </div>
-        <span className="font-black text-xs uppercase tracking-widest text-slate-700">AI 交易導師</span>
+        <span className="font-black text-xs uppercase tracking-widest text-slate-700">AI 交易助手</span>
       </div>
       
       {analysis && !isLoading ? (
@@ -98,7 +97,7 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
           </div>
           <div className="flex items-center gap-4 border-t border-slate-800 pt-4">
             <button onClick={performAnalysis} className="text-indigo-400 font-bold text-[10px] uppercase tracking-widest hover:text-indigo-300 flex items-center gap-1">
-              <i className="fas fa-sync-alt"></i> 重新分析
+              <i className="fas fa-sync-alt"></i> 重新產出
             </button>
             <button 
               onClick={() => {
@@ -117,37 +116,39 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
         <div className="space-y-3">
           {status === 'NEED_KEY' ? (
             <div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-xl animate-in slide-in-from-top-2">
-              <div className="flex items-start gap-4 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 flex-shrink-0">
-                  <i className="fas fa-key text-xl"></i>
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                  <i className="fas fa-exclamation-circle text-lg"></i>
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-sm font-black text-slate-800">連結 API 金鑰</h4>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    {errorDetail || "目前系統無法讀取到有效的 API 金鑰。請點擊按鈕從您的 Google 帳號中選取一組金鑰。"}
-                  </p>
-                  <p className="text-[10px] text-indigo-500 font-bold mt-2">
-                    <i className="fas fa-info-circle mr-1"></i> 請確保選擇的專案已開啟 Billing (付費) 功能。
+                  <h4 className="text-sm font-black text-slate-800">尚未偵測到金鑰</h4>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    請至 Vercel 將您從 Google 複製的金鑰設定為 <b>API_KEY</b> 並重新部署。
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={handleLinkKey}
-                className="w-full py-4 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg hover:bg-indigo-700 transition active:scale-95 flex items-center justify-center gap-2"
-              >
-                <i className="fas fa-plug"></i> 立即連結我的 Google API Key
-              </button>
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={handleManualLink}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg hover:bg-indigo-700 transition active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <i className="fas fa-external-link-alt"></i> 我想嘗試手動授權
+                </button>
+                <button 
+                  onClick={performAnalysis}
+                  className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition"
+                >
+                  我已在 Vercel 設定好，再次嘗試
+                </button>
+              </div>
             </div>
           ) : status === 'ERROR' ? (
             <div className="bg-rose-50 border border-rose-100 p-5 rounded-2xl space-y-3">
               <div className="flex items-center gap-2 text-rose-600 font-black text-[10px] uppercase">
-                <i className="fas fa-exclamation-triangle"></i> 服務異常
+                <i className="fas fa-bug"></i> 錯誤細節
               </div>
-              <p className="text-[10px] text-rose-700 font-mono bg-white/50 p-3 rounded-lg">{errorDetail}</p>
-              <div className="flex gap-2">
-                <button onClick={performAnalysis} className="flex-grow py-3 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition">重試</button>
-                <button onClick={handleLinkKey} className="px-4 py-3 bg-white text-rose-600 border border-rose-200 rounded-xl text-xs font-bold">更換金鑰</button>
-              </div>
+              <p className="text-[10px] text-rose-700 font-mono bg-white/50 p-3 rounded-lg break-all">{errorDetail}</p>
+              <button onClick={performAnalysis} className="w-full py-3 bg-rose-600 text-white rounded-xl text-xs font-bold">重試</button>
             </div>
           ) : (
             <button 

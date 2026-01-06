@@ -1,7 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
 import { Trade, TradeDirection } from '../types';
-import GeminiCoach from './GeminiCoach';
 import TradeCalendar from './TradeCalendar';
 
 interface DashboardProps {
@@ -71,7 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick, 
         </div>
         <div className="space-y-2">
           <h2 className="text-3xl font-black text-slate-800 tracking-tight">開啟您的交易日誌</h2>
-          <p className="text-slate-400 max-w-md mx-auto font-medium">尚無交易記錄。開始記錄您的每一筆交易，TradeMind 將為您提供深度心理與績效分析。</p>
+          <p className="text-slate-400 max-w-md mx-auto font-medium">尚無交易記錄。開始記錄您的每一筆交易，TradeMind 將為您提供深度績效分析。</p>
         </div>
         <button 
           onClick={onAddFirstTrade} 
@@ -181,7 +180,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, onViewLogs, onDateClick, 
                   </div>
                 </div>
               </div>
-              <GeminiCoach trades={trades} />
             </div>
           )}
 

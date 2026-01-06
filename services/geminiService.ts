@@ -5,14 +5,15 @@ import { Trade } from "../types";
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "尚無交易數據可供分析。";
 
-  // 根據規範：API Key 必須由 process.env.API_KEY 獲取
-  // 建立新實例以確保使用最新注入的金鑰
+  // 優先從環境變數獲取 API Key
   const apiKey = process.env.API_KEY;
   
   if (!apiKey || apiKey.trim() === '') {
+    console.error("Missing process.env.API_KEY. Please set it in Vercel.");
     throw new Error("API_KEY_MISSING");
   }
 
+  // 建立新實例
   const ai = new GoogleGenAI({ apiKey: apiKey });
   
   const tradeSummary = trades.slice(-10).map(t => ({
@@ -48,7 +49,7 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
     console.error("Gemini API Error:", error);
     const errorMessage = error.message || String(error);
     
-    // 規範：若包含 "Requested entity was not found"，代表需要重新選擇 Key
+    // 若出現 Requested entity was not found，通常是模型權限或 Key 錯誤
     if (errorMessage.includes("Requested entity was not found")) {
       throw new Error("ENTITY_NOT_FOUND");
     }

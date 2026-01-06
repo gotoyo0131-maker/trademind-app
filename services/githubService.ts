@@ -1,51 +1,59 @@
 
-import { Trade } from "../types";
+import { Trade, GitHubConfig } from '../types';
 
-export interface GitHubConfig {
-  token: string;
-  gistId?: string;
-}
+export const syncToGithub = async (config: GitHubConfig, trades: Trade[], setups: string[]): Promise<string> => {
+  const content = JSON.stringify({ trades, setups, syncedAt: new Date().toISOString() });
+  const fileName = 'trademind_backup.json';
+  
+  const headers = {
+    'Authorization': `token ${config.token}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json',
+  };
 
-const GIST_FILENAME = "trademind_backup.json";
+  const body = {
+    description: 'TradeMind AI Backup Data',
+    public: false,
+    files: {
+      [fileName]: { content }
+    }
+  };
 
-export const syncToGithub = async (config: GitHubConfig, trades: Trade[], setups: string[]) => {
-  const { token, gistId } = config;
-  const content = JSON.stringify({ trades, setups, updatedAt: new Date().toISOString() });
+  try {
+    let response;
+    if (config.gistId) {
+      // Update existing gist
+      response = await fetch(`https://api.github.com/gists/${config.gistId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body),
+      });
+    } else {
+      // Create new gist
+      response = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+    }
 
-  const method = gistId ? 'PATCH' : 'POST';
-  const url = gistId ? `https://api.github.com/gists/${gistId}` : 'https://api.github.com/gists';
-
-  const response = await fetch(url, {
-    method,
-    headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      description: "TradeMind Journal Backup (Private)",
-      public: false,
-      files: {
-        [GIST_FILENAME]: { content }
-      }
-    })
-  });
-
-  if (!response.ok) throw new Error('GitHub 同步失敗，請檢查 Token 權限。');
-  const result = await response.json();
-  return result.id as string;
+    if (!response.ok) throw new Error('GitHub 同步失敗，請檢查 Token 權限。');
+    
+    const data = await response.json();
+    return data.id;
+  } catch (err: any) {
+    throw new Error(err.message);
+  }
 };
 
 export const pullFromGithub = async (token: string, gistId: string) => {
   const response = await fetch(`https://api.github.com/gists/${gistId}`, {
-    headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github.v3+json',
-    }
+    headers: { 'Authorization': `token ${token}` }
   });
-
-  if (!response.ok) throw new Error('無法從雲端拉取資料，請檢查 Gist ID。');
-  const result = await response.json();
-  const fileContent = result.files[GIST_FILENAME].content;
-  return JSON.parse(fileContent) as { trades: Trade[], setups: string[] };
+  
+  if (!response.ok) throw new Error('讀取雲端資料失敗。');
+  
+  const data = await response.json();
+  const file = Object.values(data.files)[0] as any;
+  return JSON.parse(file.content);
 };

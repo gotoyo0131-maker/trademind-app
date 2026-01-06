@@ -1,34 +1,39 @@
 
-export enum TradeDirection {
-  LONG = '多 (Long)',
-  SHORT = '空 (Short)'
-}
-
-export enum ErrorCategory {
-  NONE = '無 (紀律執行)',
-  MARKET_VOLATILITY = '市場隨機波動',
-  OVER_TRADING = '過度交易',
-  NO_STOP_LOSS = '未設止損',
-  FOMO = 'FOMO (怕錯過)',
-  EMOTIONAL_TRADING = '情緒化交易',
-  REVENGE_TRADING = '報復性交易',
-  BREAKING_RULES = '違反交易規則'
-}
-
 export type Role = 'admin' | 'user';
 
 export interface User {
   id: string;
   username: string;
-  password?: string; // 本地模擬，實際生產環境不建議存明文
+  password?: string;
   role: Role;
   createdAt: string;
+  isActive?: boolean; // 新增：是否啟用
+}
+
+export enum TradeDirection {
+  LONG = '做多 (Long)',
+  SHORT = '做空 (Short)'
+}
+
+export enum ErrorCategory {
+  NONE = '無 (完美執行)',
+  FOMO = 'FOMO (害怕錯過)',
+  OVERTRADE = '過度交易',
+  REVENGE = '報復性交易',
+  RULE_BREAK = '違反交易規則',
+  HESITATION = '猶豫不決',
+  STOP_MOVE = '亂移止損',
+  EARLY_EXIT = '過早出場'
+}
+
+export interface TradeScreenshot {
+  url: string;
+  description: string;
 }
 
 export interface Trade {
   id: string;
-  userId: string; // 關聯用戶 ID
-  // 第一維度：基礎數據
+  userId: string;
   entryTime: string;
   exitTime: string;
   symbol: string;
@@ -37,27 +42,25 @@ export interface Trade {
   exitPrice: number;
   size: number;
   fees: number;
-  slippage: number;
-  
-  // 第二維度：策略
+  slippage?: number;
   setup: string;
-  stopLoss: number;
-  takeProfit: number;
-
-  // 第三維度：心理
+  stopLoss?: number;
+  takeProfit?: number;
   confidence: number;
   emotions: string;
-  preTradeMindset: string;
+  preTradeMindset?: string;
   executionRating: number;
-  notesOnExecution: string;
-
-  // 第四維度：總結
+  notesOnExecution?: string;
   errorCategory: ErrorCategory;
-  improvements: string;
+  improvements?: string;
   summary: string;
-
-  // 計算欄位
   pnlAmount: number;
   pnlPercentage: number;
-  riskRewardRatio: number;
+  riskRewardRatio?: number;
+  screenshots: TradeScreenshot[];
+}
+
+export interface GitHubConfig {
+  token: string;
+  gistId?: string;
 }

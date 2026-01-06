@@ -1,5 +1,6 @@
+
 {
-  "name": "TradeMind - Professional Trading Journal",
-  "description": "A comprehensive trading journal application featuring analytics, psychology tracking, and AI-powered coaching based on your trade history and emotions.",
+  "name": "專業交易日誌 - 屬於您的交易管理專家",
+  "description": "提供高度個人化的交易記錄、心理分析與績效監控，幫助交易者實現卓越獲利。",
   "requestFramePermissions": []
 }

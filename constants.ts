@@ -1,35 +1,12 @@
 
-export const INITIAL_SETUP_OPTIONS = [
-  '突破 (Breakout)',
-  '回調/回測 (Retest)',
-  '趨勢跟蹤 (Trend Following)',
-  '均線交叉 (MA Cross)',
-  'RSI 超買超賣',
-  '支撐阻力反彈',
-  '震盪回歸 (Mean Reversion)',
-  '短線頭皮 (Scalping)',
-  '消息面驅動'
-];
-
-export const INITIAL_SYMBOL_OPTIONS = [
-  'BTC/USDT',
-  'ETH/USDT',
-  'SOL/USDT',
-  'XAU/USD (黃金)',
-  'AAPL (蘋果)',
-  'TSLA (特斯拉)',
-  'EUR/USD',
-  '台指期'
-];
-
 export const EMOTION_TAGS = [
-  '冷靜',
-  '焦慮',
-  '興奮',
-  '貪婪',
-  '恐懼',
-  '憤怒',
-  '紀律執行',
-  '衝動',
-  '猶豫'
+  '冷靜', '焦慮', '興奮', '憤怒', '恐懼', '貪婪', '自信', '疲倦', '分心', '挫折'
+];
+
+export const DEFAULT_SETUPS = [
+  '趨勢跟隨', '區間突破', 'VCP形態', '均線回測', '逆勢反轉', '新聞驅動'
+];
+
+export const DEFAULT_SYMBOLS = [
+  'BTC/USDT', 'ETH/USDT', 'TSLA', 'NVDA', 'AAPL', '台指期', '黃金'
 ];

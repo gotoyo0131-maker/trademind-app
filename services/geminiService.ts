@@ -5,9 +5,10 @@ import { Trade } from "../types";
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "尚無交易數據可供分析。";
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // 每次調用時實例化，確保獲取最新的 process.env.API_KEY
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
-  // Prepare a condensed version of history for the prompt
+  // 準備最近 10 筆交易摘要
   const tradeSummary = trades.slice(-10).map(t => ({
     symbol: t.symbol,
     pnl: t.pnlAmount,
@@ -40,9 +41,19 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
       },
     });
 
-    return response.text || "AI 暫時無法生成分析報告，請稍後再試。";
-  } catch (error) {
+    if (!response.text) {
+      throw new Error("Empty response from Gemini");
+    }
+
+    return response.text;
+  } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
+    
+    // 拋出特定錯誤供 UI 層處理
+    if (error.message?.includes("Requested entity was not found")) {
+      throw new Error("KEY_NOT_FOUND");
+    }
+    
     return "分析過程中發生錯誤，請檢查您的網路連接或稍後再試。";
   }
 };

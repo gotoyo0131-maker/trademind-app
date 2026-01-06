@@ -1,20 +1,47 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 📈 專業交易日誌 (Professional Trading Journal)
 
-# Run and deploy your AI Studio app
+這是一款為追求卓越績效的交易者設計的專業日誌系統。不僅記錄盈虧，更專注於**交易心理**、**執行紀律**與**行為矯正**。
 
-This contains everything you need to run your app locally.
+## 🌟 核心特色
 
-View your app in AI Studio: https://ai.studio/apps/drive/1YptX1ESiGjrV4tVZXLAJLxJTuc-5Zo5H
+### 1. 個人化專屬空間
+- **動態命名**：系統自動根據您的用戶名生成專屬標題（如：`RURU 交易日誌`）。
+- **沈浸式體驗**：專為交易者設計的深色模式登錄頁面與簡潔高效的後台界面。
 
-## Run Locally
+### 2. 多維度數據看板
+- **盈虧日曆**：直觀查看每日戰果，點擊日期即可查看當天所有明細。
+- **持倉效率分析**：自動計算獲利交易與虧損交易的平均持倉時間，優化您的交易節奏。
+- **多空分佈**：分析您的交易偏好，避免單一方向的思維陷阱。
 
-**Prerequisites:**  Node.js
+### 3. AI 交易心理導師 (Gemini Powered)
+- **智能診斷**：點擊即可啟動 AI 針對最近 10 筆交易進行深度行為分析。
+- **行動建議**：AI 會根據您的情緒標籤與盈虧關聯，給出具體的下週改善建議。
 
+### 4. 心理與紀律量化
+- **紀律指數**：基於您的執行評分自動計算「知行合一」百分比。
+- **情緒關聯圖**：分析哪些情緒標籤（如：FOMO、報復性交易）最常導致您的虧損。
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 5. 管理員控制台
+- **用戶管理**：支持多用戶使用，管理員可凍結、刪除或修改用戶權限。
+- **安全保護**：內置管理員帳號保護機制，防止誤刪當前運行的管理帳戶。
+
+## 🚀 快速開始
+
+### 預設管理員帳號
+- **用戶名**: `admin`
+- **密碼**: `123`
+
+> *註：登入後請務必在系統設置或管理後台修改您的安全密碼。*
+
+## 🛠 技術架構
+- **Frontend**: React 19 + TypeScript
+- **Styling**: Tailwind CSS (現代化響應式設計)
+- **Charts**: Recharts (高效能數據可視化)
+- **AI Engine**: Google Gemini API (gemini-3-flash-preview)
+- **Icons**: FontAwesome 6
+
+## 🔒 數據隱私
+本應用目前採用 **LocalStorage** 進行數據存儲。您的所有交易紀錄、圖片連結與心理備註皆保存在您的瀏覽器本地環境中，確保隱私不外洩。
+
+---
+*誠實記錄是長期獲利的唯一途徑。祝您交易順利！*

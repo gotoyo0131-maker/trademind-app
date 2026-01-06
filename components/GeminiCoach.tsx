@@ -21,7 +21,7 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [errorType, setErrorType] = useState<'NONE' | 'SETUP' | 'GENERAL'>('NONE');
+  const [errorStatus, setErrorStatus] = useState<'NONE' | 'MISSING_KEY' | 'API_ERROR'>('NONE');
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -51,16 +51,18 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
     }
   };
 
-  const handleOpenKeySelector = async () => {
+  const handleManualConnect = async () => {
     if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
       try {
         await window.aistudio.openSelectKey();
-        setErrorType('NONE');
+        // 選擇後直接重試
+        setErrorStatus('NONE');
         getAnalysis();
       } catch (e) {
         console.error("Key selector error:", e);
       }
     } else {
+      // 如果不在 AI Studio 環境，跳轉到教學
       window.open('https://ai.google.dev/gemini-api/docs/billing', '_blank');
     }
   };
@@ -69,7 +71,7 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
     if (trades.length < 1) return;
     
     setIsLoading(true);
-    setErrorType('NONE');
+    setErrorStatus('NONE');
     setErrorMessage('');
 
     try {
@@ -77,12 +79,12 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
       setAnalysis(result);
     } catch (e: any) {
       const msg = e.message || "";
-      if (msg.includes("API_KEY") || msg.includes("Vercel")) {
-        setErrorType('SETUP');
+      if (msg === "MISSING_ENV_KEY") {
+        setErrorStatus('MISSING_KEY');
       } else {
-        setErrorType('GENERAL');
+        setErrorStatus('API_ERROR');
+        setErrorMessage(msg);
       }
-      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -114,43 +116,71 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
             <p className="whitespace-pre-wrap text-slate-200 font-medium">{analysis}</p>
           </div>
           <div className="mt-6 flex gap-3 border-t border-slate-800 pt-4">
-            <button onClick={getAnalysis} className="text-indigo-400 font-bold uppercase tracking-widest text-[10px] flex items-center gap-1">
+            <button onClick={getAnalysis} className="text-indigo-400 font-bold uppercase tracking-widest text-[10px] flex items-center gap-1 hover:text-indigo-300 transition">
               <i className="fas fa-sync-alt"></i> 重新診斷
             </button>
-            <button onClick={() => setAnalysis(null)} className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">關閉</button>
+            <button onClick={() => setAnalysis(null)} className="text-slate-500 font-bold uppercase tracking-widest text-[10px] hover:text-slate-400 transition">關閉</button>
           </div>
         </div>
       ) : (
         <div className="space-y-3">
-          {errorType !== 'NONE' ? (
-            <div className="bg-white border border-rose-200 p-6 rounded-2xl space-y-4 animate-in fade-in">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0">
-                  <i className={`fas ${errorType === 'SETUP' ? 'fa-tools' : 'fa-exclamation-triangle'}`}></i>
+          {errorStatus === 'MISSING_KEY' && (
+            <div className="bg-white border-2 border-amber-100 p-6 rounded-2xl space-y-4 animate-in fade-in">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500 flex-shrink-0">
+                  <i className="fas fa-key text-xl"></i>
                 </div>
-                <div className="flex-grow">
-                  <p className="text-xs font-black text-rose-600 uppercase tracking-widest mb-1">診斷系統異常</p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed font-mono bg-slate-50 p-2 rounded border border-slate-100 mb-3">
-                    {errorMessage}
+                <div>
+                  <h4 className="text-sm font-black text-slate-800">未偵測到 API 金鑰</h4>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    請至 <b>Vercel Settings -> Environment Variables</b> 新增名為 <code>API_KEY</code> 的變數，然後 <b>Redeploy</b>。
                   </p>
-                  <div className="flex flex-col gap-2">
-                    <button 
-                      onClick={handleOpenKeySelector}
-                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md transition active:scale-95 flex items-center justify-center gap-2"
-                    >
-                      <i className="fas fa-plug"></i> 手動連結 API Key (推薦)
-                    </button>
-                    <button 
-                      onClick={getAnalysis}
-                      className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-xs font-black hover:bg-slate-200 transition"
-                    >
-                      再次嘗試自動連線
-                    </button>
-                  </div>
                 </div>
               </div>
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={handleManualConnect}
+                  className="w-full py-4 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg hover:bg-indigo-700 transition active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <i className="fas fa-plug"></i> 手動連結 API Key (即刻生效)
+                </button>
+                <button 
+                  onClick={() => window.open('https://aistudio.google.com/app/apikey', '_blank')}
+                  className="w-full py-3 bg-slate-50 text-slate-600 rounded-xl text-[10px] font-bold hover:bg-slate-100 transition border border-slate-200"
+                >
+                  前往 Google AI Studio 獲取金鑰
+                </button>
+              </div>
             </div>
-          ) : (
+          )}
+
+          {errorStatus === 'API_ERROR' && (
+            <div className="bg-rose-50 border border-rose-200 p-6 rounded-2xl space-y-4 animate-in fade-in">
+              <div className="flex items-center gap-2 text-rose-600">
+                <i className="fas fa-exclamation-circle"></i>
+                <span className="text-xs font-black uppercase tracking-wider">診斷系統異常</span>
+              </div>
+              <p className="text-[11px] text-rose-700 font-mono bg-white/50 p-3 rounded-lg border border-rose-100">
+                {errorMessage}
+              </p>
+              <div className="flex gap-2">
+                <button 
+                  onClick={getAnalysis}
+                  className="flex-grow py-3 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition"
+                >
+                  重試連線
+                </button>
+                <button 
+                  onClick={handleManualConnect}
+                  className="flex-grow py-3 bg-white text-slate-600 border border-rose-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition"
+                >
+                  更換金鑰
+                </button>
+              </div>
+            </div>
+          )}
+
+          {errorStatus === 'NONE' && (
             <button 
               onClick={getAnalysis}
               disabled={isLoading || trades.length < 1}

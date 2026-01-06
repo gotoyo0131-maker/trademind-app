@@ -5,17 +5,21 @@ import { Trade } from "../types";
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "目前還沒有交易數據可以分析。請先記錄幾筆交易吧！";
 
-  // 直接從環境變數讀取，不再需要使用者手動操作
-  const apiKey = process.env.API_KEY;
+  /**
+   * 支援多種平台的環境變數讀取方式
+   * 1. process.env.API_KEY (Vercel, Netlify)
+   * 2. import.meta.env.VITE_API_KEY (Vite)
+   */
+  const apiKey = process.env.API_KEY || (window as any).process?.env?.API_KEY;
   
-  if (!apiKey) {
+  if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
+    console.error("Critical: API_KEY is missing in the current environment.");
     throw new Error("API_KEY_MISSING");
   }
 
-  // 初始化 Gemini
+  // 每次分析時重新初始化，確保抓到最新的環境變數（應對 Redeploy 邏輯）
   const ai = new GoogleGenAI({ apiKey: apiKey });
   
-  // 只選取最有意義的數據傳送給 AI，保護隱私並節省流量
   const tradeSummary = trades.slice(-15).map(t => ({
     symbol: t.symbol,
     pnl: t.pnlAmount,
@@ -35,7 +39,7 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
     2. 【導師建議】：給出 2 個立即生效的行動指令。
     3. 【金句】：送他一句能在螢幕前提醒自己的話。
     
-    語氣要專業且直接，不要廢話。
+    語氣要專業且直接，不要廢話。不要使用 Markdown 標題符號，使用粗體即可。
   `;
 
   try {
@@ -50,7 +54,10 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
 
     return response.text || "AI 導師正在休息，請稍後再試。";
   } catch (error: any) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini API Error Detail:", error);
+    if (error.status === 403 || error.status === 401) {
+      throw new Error("API_KEY_INVALID");
+    }
     throw error;
   }
 };

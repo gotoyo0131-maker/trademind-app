@@ -3,35 +3,39 @@ import { GoogleGenAI } from "@google/genai";
 import { Trade } from "../types";
 
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
-  if (trades.length === 0) return "尚無交易數據可供分析。";
+  if (trades.length === 0) return "目前還沒有交易數據可以分析。請先記錄幾筆交易吧！";
 
-  // 優先從環境變數獲取 API Key
+  // 直接從環境變數讀取，不再需要使用者手動操作
   const apiKey = process.env.API_KEY;
   
-  if (!apiKey || apiKey.trim() === '') {
-    console.error("Missing process.env.API_KEY. Please set it in Vercel.");
+  if (!apiKey) {
     throw new Error("API_KEY_MISSING");
   }
 
-  // 建立新實例
+  // 初始化 Gemini
   const ai = new GoogleGenAI({ apiKey: apiKey });
   
-  const tradeSummary = trades.slice(-10).map(t => ({
+  // 只選取最有意義的數據傳送給 AI，保護隱私並節省流量
+  const tradeSummary = trades.slice(-15).map(t => ({
     symbol: t.symbol,
     pnl: t.pnlAmount,
+    direction: t.direction,
     emotion: t.emotions,
     error: t.errorCategory,
-    rating: t.executionRating
+    rating: t.executionRating,
+    summary: t.summary
   }));
 
   const prompt = `
-    你是一位專業的交易心理導師。請根據以下交易紀錄進行分析：
+    你是一位冷靜、毒舌但極其專業的交易心理教練。請根據以下交易者的近期數據進行「靈魂拷問」與「戰術指導」：
     ${JSON.stringify(tradeSummary, null, 2)}
     
-    請提供：
-    1. 紀律診斷：指出執行上的核心問題。
-    2. 行動方案：給出 3 個具體改進動作。
-    請用繁體中文，語氣精簡犀利。
+    請以繁體中文回覆，包含：
+    1. 【核心病灶】：用一句話點破該交易者目前最大的心理或執行弱點。
+    2. 【導師建議】：給出 2 個立即生效的行動指令。
+    3. 【金句】：送他一句能在螢幕前提醒自己的話。
+    
+    語氣要專業且直接，不要廢話。
   `;
 
   try {
@@ -39,21 +43,14 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
-        temperature: 0.7,
+        temperature: 0.8,
         thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
-    return response.text || "AI 暫時無法生成建議。";
+    return response.text || "AI 導師正在休息，請稍後再試。";
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    const errorMessage = error.message || String(error);
-    
-    // 若出現 Requested entity was not found，通常是模型權限或 Key 錯誤
-    if (errorMessage.includes("Requested entity was not found")) {
-      throw new Error("ENTITY_NOT_FOUND");
-    }
-    
-    throw new Error(errorMessage);
+    console.error("Gemini Error:", error);
+    throw error;
   }
 };

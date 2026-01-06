@@ -24,6 +24,22 @@ const SetupSettings: React.FC<SetupSettingsProps> = ({ options, symbolOptions, o
         <p className="text-slate-500 font-medium">自定義您的交易環境與數據</p>
       </header>
 
+      {/* 系統狀態顯示 - 讓使用者安心 */}
+      <section className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 flex items-center justify-between shadow-sm">
+        <div>
+          <h3 className="text-sm font-black text-indigo-900 uppercase tracking-widest mb-1 flex items-center gap-2">
+            <i className="fas fa-shield-alt"></i> 系統運行狀態
+          </h3>
+          <p className="text-xs text-indigo-600 font-medium flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            安全本地模式 (不須 API 金鑰，資料 100% 隱私)
+          </p>
+        </div>
+        <div className="bg-white/50 px-4 py-2 rounded-xl border border-indigo-200 text-[10px] font-bold text-indigo-700">
+          V1.2.5 - 離線加密版本
+        </div>
+      </section>
+
       {/* Setup Options */}
       <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
         <h3 className="text-lg font-bold text-slate-800 mb-4">策略標籤管理 (Setups)</h3>

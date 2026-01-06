@@ -19,9 +19,14 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
   const [showGuide, setShowGuide] = useState(false);
 
   const checkKey = () => {
-    // 優先從 process.env 讀取，這是 Netlify 部署時注入的地方
-    const key = process.env.API_KEY;
-    if (key && key !== "undefined" && key.length > 15) {
+    let key = "";
+    try {
+      key = process.env.API_KEY || "";
+    } catch (e) {
+      key = (window as any).process?.env?.API_KEY || "";
+    }
+    
+    if (key && key !== "undefined" && key.length > 10) {
       setApiKeyStatus('detected');
     } else {
       setApiKeyStatus('missing');
@@ -30,7 +35,6 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
 
   useEffect(() => {
     checkKey();
-    // 每 2 秒檢查一次，方便使用者在重新部署完成後立即看到變化
     const interval = setInterval(checkKey, 2000);
     return () => clearInterval(interval);
   }, []);
@@ -42,12 +46,11 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
       const result = await analyzeTradeHistory(trades);
       setAiAnalysis(result);
     } catch (e: any) {
-      console.error("AI Analysis Error:", e);
       if (e.message === "API_KEY_MISSING") {
-        setError("系統目前讀取不到金鑰。這通常是因為設定完變數後尚未執行 'Trigger Deploy'。");
+        setError("系統目前讀取不到金鑰。這通常是因為設定完變數後尚未執行 Trigger Deploy。");
         setShowGuide(true);
       } else if (e.message === "API_KEY_INVALID") {
-        setError("金鑰驗證失敗。請確認您在 Netlify 貼上的金鑰完整且沒有多餘空格。");
+        setError("金鑰驗證失敗。請確認您在 Netlify 貼上的金鑰完整且無空格。");
       } else {
         setError(`連線錯誤: ${e.message || "請檢查網路連線"}`);
       }
@@ -100,19 +103,19 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
                   <div className="flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${apiKeyStatus === 'detected' ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,1)]' : 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,1)] animate-pulse'}`}></div>
                     <span className={`text-xs font-black uppercase tracking-widest ${apiKeyStatus === 'detected' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {apiKeyStatus === 'detected' ? 'ONLINE' : 'SYNCING...'}
+                      {apiKeyStatus === 'detected' ? 'ONLINE' : 'OFFLINE'}
                     </span>
                   </div>
                 </h3>
-                <p className="text-indigo-300/60 text-xs font-bold uppercase tracking-[0.5em] mt-3">Quantum Engine v3.2</p>
+                <p className="text-indigo-300/60 text-xs font-bold uppercase tracking-[0.5em] mt-3">Quantum Engine v3.3</p>
               </div>
             </div>
 
             <div className="flex flex-col items-end gap-2">
               <div className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">部署狀態</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase">部署檢查</span>
                 <span className={`text-xs font-bold ${apiKeyStatus === 'detected' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {apiKeyStatus === 'detected' ? '變數已生效' : '等待重新部署'}
+                  {apiKeyStatus === 'detected' ? '金鑰已就緒' : '待重新部署'}
                 </span>
               </div>
             </div>
@@ -124,16 +127,18 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
                 <h4 className="text-xl font-black text-indigo-300 flex items-center gap-4">
                   <i className="fas fa-rocket"></i> 設定看起來正確，請完成最後一步
                 </h4>
-                <button onClick={() => setShowGuide(false)} className="text-slate-500 hover:text-white transition-colors"><i className="fas fa-times text-2xl"></i></button>
+                <button onClick={() => setShowGuide(false)} className="text-slate-500 hover:text-white transition-colors">
+                  <i className="fas fa-times text-2xl"></i>
+                </button>
               </div>
               
               <div className="bg-white/5 p-8 rounded-2xl border border-white/5 space-y-4">
                 <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                  您的截圖顯示變數已儲存。現在請點擊左側選單的 <i className="fas fa-code-branch mx-1 text-indigo-400"></i> **Deploys** 圖示，然後點擊右方的 **Trigger deploy** -> **Deploy site**。
+                  您的設定已經儲存。請點擊左側選單的 <b>Deploys</b> 圖示，然後點擊右方的 <b>Trigger deploy</b> 並選擇 <b>Deploy site</b>。
                 </p>
                 <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                   <p className="text-xs text-amber-300 font-bold">
-                    <i className="fas fa-info-circle mr-2"></i> 提示：網頁必須重新建置，才能將您剛設定的金鑰「燒入」系統中。
+                    <i className="fas fa-info-circle mr-2"></i> 提示：網頁必須重新建置（Rebuild），新的金鑰才會生效。
                   </p>
                 </div>
               </div>
@@ -173,7 +178,7 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
                 {apiKeyStatus === 'missing' && (
                   <div className="flex items-center gap-4 text-amber-400 animate-pulse">
                     <i className="fas fa-arrow-left text-2xl"></i>
-                    <span className="text-sm font-black uppercase tracking-widest">請先至 Deploys 重新部署</span>
+                    <span className="text-sm font-black uppercase tracking-widest">請先重新部署</span>
                   </div>
                 )}
               </div>
@@ -200,7 +205,7 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
               </div>
               <button 
                 onClick={() => setAiAnalysis(null)}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white px-12 py-5 rounded-2xl text-xs font-black transition-all flex items-center gap-4 uppercase tracking-[0.2em]"
+                className="bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white px-12 py-5 rounded-2xl text-xs font-black transition-all flex items-center gap-4 uppercase"
               >
                 <i className="fas fa-sync-alt"></i> 重啟新的診斷
               </button>
@@ -213,7 +218,7 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
         <div className="md:col-span-2 bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl">
           <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-10 flex items-center gap-3">
             <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-            情緒標籤與盈虧關聯
+            情緒標籤與盈虧分析
           </h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">

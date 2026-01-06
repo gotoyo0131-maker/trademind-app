@@ -32,7 +32,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       onLogin(user);
       localStorage.setItem('trademind_session', JSON.stringify(user));
     } else {
-      setError('用戶名或密碼錯誤 (預設管理員 admin/123)');
+      // 移除 (預設管理員 admin/123) 提示，提高安全性
+      setError('用戶名或密碼錯誤，請重新輸入。');
     }
   };
 

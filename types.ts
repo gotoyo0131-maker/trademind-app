@@ -7,7 +7,9 @@ export interface User {
   password?: string;
   role: Role;
   createdAt: string;
-  isActive?: boolean; // 新增：是否啟用
+  isActive?: boolean;
+  initialBalance?: number;
+  useInitialBalance?: boolean;
 }
 
 export enum TradeDirection {
@@ -46,6 +48,7 @@ export interface Trade {
   setup: string;
   stopLoss?: number;
   takeProfit?: number;
+  initialRisk?: number; // 新增：初始風險金額
   confidence: number;
   emotions: string;
   preTradeMindset?: string;

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Trade, TradeDirection, ErrorCategory, TradeScreenshot } from '../types';
 import { EMOTION_TAGS } from '../constants';
 
@@ -12,6 +12,8 @@ interface LogFormProps {
 }
 
 const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupOptions, symbolOptions }) => {
+  const [step, setStep] = useState(1);
+  const [showRiskHelp, setShowRiskHelp] = useState(false);
   const [formData, setFormData] = useState<Partial<Trade>>({
     id: `id_${Date.now()}`,
     entryTime: new Date().toISOString().slice(0, 16),
@@ -26,6 +28,7 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
     setup: setupOptions[0] || '',
     stopLoss: 0,
     takeProfit: 0,
+    initialRisk: 0,
     confidence: 7,
     emotions: '',
     preTradeMindset: '',
@@ -41,6 +44,20 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
       { url: '', description: '' }
     ]
   });
+
+  // 智慧風險計算邏輯
+  const riskCalculation = useMemo(() => {
+    const ep = Number(formData.entryPrice) || 0;
+    const sl = Number(formData.stopLoss) || 0;
+    const sz = Number(formData.size) || 0;
+    const tp = Number(formData.takeProfit) || 0;
+
+    const hasBaseData = ep > 0 && sl > 0;
+    const amount = hasBaseData ? Math.abs(ep - sl) * (sz || 1) : 0;
+    const rr = (hasBaseData && tp > 0) ? Math.abs(tp - ep) / Math.abs(ep - sl) : 0;
+
+    return { amount, rr, ready: hasBaseData && sz > 0 };
+  }, [formData.entryPrice, formData.stopLoss, formData.size, formData.takeProfit]);
 
   useEffect(() => {
     if (initialData) {
@@ -76,6 +93,11 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (step < 2) {
+      setStep(step + 1);
+      return;
+    }
+
     const entryPrice = Number(formData.entryPrice) || 0;
     const exitPrice = Number(formData.exitPrice) || 0;
     const size = Number(formData.size) || 0;
@@ -97,187 +119,219 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
     });
   };
 
-  const SectionTitle = ({ num, title }: { num: string, title: string }) => (
-    <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-3 border-l-4 border-indigo-600 pl-4">
-      <span className="text-indigo-600 font-black">{num}.</span>
-      {title}
-    </h3>
-  );
-
   return (
-    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-md py-4 z-20 border-b border-slate-200">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">{initialData ? '編輯日誌' : '新增交易日誌'}</h2>
-          <p className="text-xs text-slate-500 font-medium">誠實紀錄是長期獲利的唯一方法。</p>
-        </div>
-        <div className="flex gap-3">
-          <button type="button" onClick={onCancel} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl transition">取消</button>
-          <button type="submit" className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition active:scale-95">儲存日誌</button>
-        </div>
+    <div className="max-w-4xl mx-auto pb-24">
+      <style>{`
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+      `}</style>
+
+      <header className="text-center mb-10">
+        <h2 className="text-3xl font-black text-slate-900 tracking-tight">{initialData ? '編輯交易細節' : '開始新的交易錄入'}</h2>
+        <p className="text-slate-500 font-medium">深入紀錄客觀數據與主觀感受，邁向職業交易者。</p>
+      </header>
+
+      {/* Step Indicator - Reduced to 2 steps */}
+      <div className="flex items-center justify-center gap-4 mb-10">
+        {[1, 2].map(s => (
+          <div key={s} className="flex items-center gap-2">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black transition-all ${step === s ? 'bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-600/20' : step > s ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}`}>
+              {step > s ? <i className="fas fa-check text-xs"></i> : s}
+            </div>
+            {s < 2 && <div className={`w-12 h-1 rounded-full ${step > s ? 'bg-emerald-500' : 'bg-slate-200'}`}></div>}
+          </div>
+        ))}
       </div>
 
-      {/* 1. 基礎交易數據 (Hard Data) */}
-      <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <SectionTitle num="一" title="基礎交易數據 (Hard Data)" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">進場時間</label>
-            <input type="datetime-local" value={formData.entryTime} onChange={e => setFormData({...formData, entryTime: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">出場時間</label>
-            <input type="datetime-local" value={formData.exitTime} onChange={e => setFormData({...formData, exitTime: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" required />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">標的 (Symbol)</label>
-            <select value={formData.symbol} onChange={e => setFormData({...formData, symbol: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-indigo-700 outline-none" required>
-              {symbolOptions.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">方向</label>
-            <select value={formData.direction} onChange={e => setFormData({...formData, direction: e.target.value as TradeDirection})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold">
-              <option value={TradeDirection.LONG}>{TradeDirection.LONG}</option>
-              <option value={TradeDirection.SHORT}>{TradeDirection.SHORT}</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">數量</label>
-            <input type="number" step="any" value={formData.size} onChange={e => setFormData({...formData, size: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">進場價</label>
-            <input type="number" step="any" value={formData.entryPrice} onChange={e => setFormData({...formData, entryPrice: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">出場價</label>
-            <input type="number" step="any" value={formData.exitPrice} onChange={e => setFormData({...formData, exitPrice: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">手續費</label>
-            <input type="number" step="any" value={formData.fees} onChange={e => setFormData({...formData, fees: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" />
-          </div>
-        </div>
-      </section>
-
-      {/* 2. 策略與邏輯 (Technical) */}
-      <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <SectionTitle num="二" title="策略與邏輯 (Technical)" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">進場策略 (Setup)</label>
-            <select value={formData.setup} onChange={e => setFormData({...formData, setup: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold">
-              {setupOptions.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-             <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">止損</label>
-                <input type="number" step="any" value={formData.stopLoss} onChange={e => setFormData({...formData, stopLoss: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
-             </div>
-             <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase">止盈</label>
-                <input type="number" step="any" value={formData.takeProfit} onChange={e => setFormData({...formData, takeProfit: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none" />
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. 交易圖解與截圖 (Screenshots) */}
-      <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <SectionTitle num="三" title="交易圖解與截圖 (Screenshots)" />
-        <p className="text-[10px] text-slate-400 mb-6 -mt-4 font-medium italic">請輸入 TradingView 連結或其他圖片網址。未輸入網址的欄位將不會儲存。</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {formData.screenshots?.map((ss, idx) => (
-            <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">截圖 #{idx + 1}</span>
-                {ss.url && <i className="fas fa-check-circle text-emerald-500 text-xs"></i>}
-              </div>
-              <div className="space-y-2">
-                <div className="relative">
-                  <i className="fas fa-link absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
-                  <input 
-                    type="url" 
-                    placeholder="圖片或連結網址..." 
-                    value={ss.url} 
-                    onChange={e => handleScreenshotChange(idx, 'url', e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
+      <form onSubmit={handleSubmit} className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-xl border border-slate-200 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {step === 1 && (
+          <div className="space-y-10">
+            {/* 1. 市場基礎數據 */}
+            <div className="space-y-6">
+              <h3 className="text-sm font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                <i className="fas fa-database"></i> 交易明細與數據
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">標的 (Symbol)</label>
+                  <select value={formData.symbol} onChange={e => setFormData({...formData, symbol: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-800 outline-none appearance-none" required>
+                    {symbolOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
-                <div className="relative">
-                  <i className="fas fa-comment-alt absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
-                  <input 
-                    type="text" 
-                    placeholder="簡短說明 (如: 進場圖)..." 
-                    value={ss.description} 
-                    onChange={e => handleScreenshotChange(idx, 'description', e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">方向</label>
+                  <select value={formData.direction} onChange={e => setFormData({...formData, direction: e.target.value as TradeDirection})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-black text-slate-800 appearance-none">
+                    <option value={TradeDirection.LONG}>{TradeDirection.LONG}</option>
+                    <option value={TradeDirection.SHORT}>{TradeDirection.SHORT}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">進場價格</label>
+                  <input type="number" step="any" value={formData.entryPrice || ''} onChange={e => setFormData({...formData, entryPrice: Number(e.target.value)})} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold" placeholder="0.00" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">出場價格</label>
+                  <input type="number" step="any" value={formData.exitPrice || ''} onChange={e => setFormData({...formData, exitPrice: Number(e.target.value)})} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold" placeholder="0.00" />
+                </div>
+                <div className="col-span-2 md:col-span-1 space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">數量 (Size)</label>
+                  <input type="number" step="any" value={formData.size || ''} onChange={e => setFormData({...formData, size: Number(e.target.value)})} className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold" placeholder="0" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">進場時間</label>
+                  <input type="datetime-local" value={formData.entryTime} onChange={e => setFormData({...formData, entryTime: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold" required />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">出場時間</label>
+                  <input type="datetime-local" value={formData.exitTime} onChange={e => setFormData({...formData, exitTime: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold" required />
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* 4. 心理狀態與行為 (Subjective) */}
-      <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <SectionTitle num="四" title="心理狀態與行為 (Subjective)" />
-        <div className="space-y-6">
-          <div className="flex flex-wrap gap-2">
-            {EMOTION_TAGS.map(tag => (
-              <button key={tag} type="button" onClick={() => {
-                const cur = formData.emotions || '';
-                setFormData({...formData, emotions: cur.includes(tag) ? cur.replace(tag, '').trim() : `${cur} ${tag}`.trim()});
-              }} className={`px-4 py-2 rounded-full text-xs font-bold transition border ${formData.emotions?.includes(tag) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'}`}>
-                {tag}
-              </button>
-            ))}
+            {/* 2. 技術與風控 */}
+            <div className="space-y-6 pt-6 border-t border-slate-100">
+              <h3 className="text-sm font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                <i className="fas fa-shield-halved"></i> 技術策略與風控
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">進場策略 (Setup)</label>
+                    <select value={formData.setup} onChange={e => setFormData({...formData, setup: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-indigo-600 outline-none appearance-none">
+                      {setupOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
+                        初始風險 (Initial Risk $)
+                        <button type="button" onClick={() => setShowRiskHelp(!showRiskHelp)} className="w-4 h-4 bg-indigo-200 text-indigo-600 rounded-full flex items-center justify-center">
+                          <i className="fas fa-question text-[8px]"></i>
+                        </button>
+                      </label>
+                      {riskCalculation.rr > 0 && (
+                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                          R:R: {riskCalculation.rr.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <input 
+                      type="number" 
+                      step="any" 
+                      value={formData.initialRisk || ''} 
+                      onChange={e => setFormData({...formData, initialRisk: Number(e.target.value)})} 
+                      className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl font-black text-indigo-900 text-lg outline-none focus:border-indigo-500" 
+                      placeholder="這筆打算賠多少？" 
+                    />
+                    {riskCalculation.ready && (
+                      <div className="flex items-center justify-between bg-white/60 p-3 rounded-xl border border-dashed border-indigo-200">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">建議: ${riskCalculation.amount.toFixed(2)}</span>
+                        <button type="button" onClick={() => setFormData({...formData, initialRisk: riskCalculation.amount})} className="text-[10px] font-black text-indigo-600 hover:underline">點擊套用</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">止損 (SL)</label>
+                      <input type="number" step="any" value={formData.stopLoss || ''} onChange={e => setFormData({...formData, stopLoss: Number(e.target.value)})} className="w-full p-3 bg-rose-50 border border-rose-100 rounded-xl font-bold text-rose-500" placeholder="止損價" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">止盈 (TP)</label>
+                      <input type="number" step="any" value={formData.takeProfit || ''} onChange={e => setFormData({...formData, takeProfit: Number(e.target.value)})} className="w-full p-3 bg-emerald-50 border border-emerald-100 rounded-xl font-bold text-emerald-500" placeholder="目標價" />
+                    </div>
+                  </div>
+                  
+                  {/* Screenshots Grid - 4 slots visible */}
+                  <div className="space-y-3 pt-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">交易圖解 (至少 4 個欄位)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {formData.screenshots?.map((ss, idx) => (
+                        <div key={idx} className="p-2 bg-slate-50 border border-slate-100 rounded-lg flex flex-col gap-1.5">
+                          <input type="url" placeholder="圖片網址" value={ss.url} onChange={e => handleScreenshotChange(idx, 'url', e.target.value)} className="text-[9px] bg-white p-1 rounded border border-slate-200 outline-none" />
+                          <input type="text" placeholder="描述" value={ss.description} onChange={e => handleScreenshotChange(idx, 'description', e.target.value)} className="text-[9px] bg-white p-1 rounded border border-slate-200 outline-none" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-             <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 block">執行紀律評分 ({formData.executionRating} 星)</label>
-                <div className="flex gap-2">
+        )}
+
+        {step === 2 && (
+          <div className="space-y-10 animate-in fade-in slide-in-from-right-4">
+            <h3 className="text-sm font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+              <i className="fas fa-brain"></i> 執行檢討與心理狀態
+            </h3>
+            
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">心理狀態標籤 (可多選)</label>
+              <div className="flex flex-wrap gap-2">
+                {EMOTION_TAGS.map(tag => (
+                  <button key={tag} type="button" onClick={() => {
+                    const cur = formData.emotions || '';
+                    setFormData({...formData, emotions: cur.includes(tag) ? cur.replace(tag, '').trim() : `${cur} ${tag}`.trim()});
+                  }} className={`px-4 py-2 rounded-xl text-[10px] font-black transition border-2 ${formData.emotions?.includes(tag) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200'}`}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">執行紀律評分 (1-5 星)</label>
+                <div className="flex gap-4 bg-slate-50 p-5 rounded-2xl justify-center border border-slate-100">
                   {[1,2,3,4,5].map(s => (
-                    <button key={s} type="button" onClick={() => setFormData({...formData, executionRating: s})} className={`text-2xl transition ${s <= (formData.executionRating || 0) ? 'text-amber-400' : 'text-slate-200'}`}>
+                    <button key={s} type="button" onClick={() => setFormData({...formData, executionRating: s})} className={`text-3xl transition hover:scale-125 ${s <= (formData.executionRating || 0) ? 'text-amber-400' : 'text-slate-200'}`}>
                       <i className="fas fa-star"></i>
                     </button>
                   ))}
                 </div>
-             </div>
-             <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 block">進場自信度 ({formData.confidence}/10)</label>
-                <input type="range" min="1" max="10" value={formData.confidence} onChange={e => setFormData({...formData, confidence: Number(e.target.value)})} className="w-full accent-indigo-600" />
-             </div>
-          </div>
-        </div>
-      </section>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">執行錯誤分類 (若有)</label>
+                <select value={formData.errorCategory} onChange={e => setFormData({...formData, errorCategory: e.target.value as ErrorCategory})} className="w-full p-4 bg-rose-50/30 border border-rose-100 rounded-2xl outline-none font-black text-rose-600 appearance-none">
+                  {Object.values(ErrorCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+            </div>
 
-      {/* 5. 檢討與總結 (Growth) */}
-      <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <SectionTitle num="五" title="檢討與總結 (Growth)" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">錯誤分類 (Errors)</label>
-            <select value={formData.errorCategory} onChange={e => setFormData({...formData, errorCategory: e.target.value as ErrorCategory})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-rose-600">
-              {Object.values(ErrorCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
+            <div className="space-y-6 pt-6 border-t border-slate-100">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">一句話檢討 (Summary)</label>
+                <input type="text" value={formData.summary} onChange={e => setFormData({...formData, summary: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800" placeholder="例如: 趨勢確認後回測進場，完美執行。" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">具體改進建議</label>
+                <textarea rows={4} value={formData.improvements} onChange={e => setFormData({...formData, improvements: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm leading-relaxed" placeholder="列出 2-3 個下次可以做得更好的地方..." />
+              </div>
+            </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">一句話總結</label>
-            <input type="text" value={formData.summary} onChange={e => setFormData({...formData, summary: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl" placeholder="總結本次核心..." />
-          </div>
-          <div className="md:col-span-2 space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase">未來改進點</label>
-            <textarea rows={3} value={formData.improvements} onChange={e => setFormData({...formData, improvements: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="列出 2-3 個下次可以做得更好的地方..." />
-          </div>
+        )}
+
+        <div className="pt-10 flex flex-col md:flex-row justify-between gap-4">
+          <button type="button" onClick={step === 1 ? onCancel : () => setStep(step - 1)} className="order-2 md:order-1 px-8 py-4 bg-slate-100 text-slate-600 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition">
+            {step === 1 ? '取消錄入' : '回上一步'}
+          </button>
+          <button type="submit" className="order-1 md:order-2 flex-grow py-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition active:scale-95">
+            {step === 2 ? (initialData ? '更新交易紀錄' : '完成錄入並儲存') : '下一步：行為心理與檢討 →'}
+          </button>
         </div>
-      </section>
-    </form>
+      </form>
+    </div>
   );
 };
 

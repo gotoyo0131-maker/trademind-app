@@ -17,7 +17,6 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
     const emotionMap: Record<string, { pnl: number, count: number }> = {};
     
     trades.forEach(t => {
-      // 處理情緒標籤
       const tags = (t.emotions || '').split(' ').filter(Boolean);
       tags.forEach(tag => {
         if (!emotionMap[tag]) emotionMap[tag] = { pnl: 0, count: 0 };
@@ -74,9 +73,10 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
                   style={{ width: `${(analysis?.avgExecution || 0) * 20}%` }}
                 ></div>
               </div>
-              <p className="text-indigo-100/70 text-xs font-medium leading-relaxed">
-                這是根據您在日誌中對每筆交易「執行評分」的加權總計。高於 80% 代表具備優異的知行合一能力。
-              </p>
+              <div className="flex justify-between items-center text-indigo-100/70 text-[10px] font-black uppercase tracking-widest">
+                <span>新手區</span>
+                <span>職業級</span>
+              </div>
             </div>
           </div>
         </div>
@@ -87,17 +87,17 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
             <div>
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
                 <span className="w-2 h-2 bg-indigo-600 rounded-full"></span>
-                情緒標籤 vs 平均盈虧
+                情緒標籤 vs 平均盈虧 (心理回報比)
               </h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-4">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                <span className="text-[10px] font-bold text-slate-400">獲利情緒</span>
+                <span className="text-[10px] font-bold text-slate-400">優勢情緒</span>
               </div>
-              <div className="flex items-center gap-1.5 ml-3">
+              <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
-                <span className="text-[10px] font-bold text-slate-400">虧損情緒</span>
+                <span className="text-[10px] font-bold text-slate-400">負面黑洞</span>
               </div>
             </div>
           </div>
@@ -129,23 +129,64 @@ const MindsetAnalysis: React.FC<MindsetAnalysisProps> = ({ trades }) => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          
-          <p className="text-[10px] text-slate-400 mt-6 font-medium italic text-center">
-            * 透過此圖表觀察哪些情緒標籤與您的虧損具有高度相關性，進而優化您的心態。
-          </p>
         </div>
       </div>
 
-      {/* 診斷建議提示 */}
-      <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white flex flex-col md:flex-row items-center gap-8 shadow-2xl">
-        <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0">
-          <i className="fas fa-lightbulb text-amber-400 text-2xl"></i>
+      {/* 診斷建議提示 - 全新結構化版本 */}
+      <div className="bg-slate-900 rounded-[3rem] p-12 text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-12 opacity-10">
+          <i className="fas fa-stethoscope text-[10rem]"></i>
         </div>
-        <div>
-          <h4 className="text-lg font-bold mb-1">如何閱讀此數據？</h4>
-          <p className="text-slate-400 text-sm leading-relaxed">
-            心理分析的目標在於發現您的「負面行為模式」。例如，如果您發現標籤為「焦慮」的交易平均盈虧始終為負值，這代表您在焦慮時的判斷力會大幅下降。下一次當您再次感受到焦慮時，請務必強制離場或停止交易。
-          </p>
+        
+        <div className="relative z-10 space-y-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <i className="fas fa-microscope text-xl"></i>
+            </div>
+            <div>
+              <h4 className="text-2xl font-black tracking-tight">如何解讀這份診斷報告？</h4>
+              <p className="text-slate-400 text-sm font-medium">數據不會騙人，它能揭露您大腦中的交易短路。</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-black">01</span>
+                <span className="text-sm font-black text-indigo-400 uppercase tracking-widest">定位「虧損黑洞」</span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                觀察右方圖表中<b>紅色長度最長</b>的標籤。如果「焦慮」的紅條過長，代表該情緒會直接導致您的判斷力失效，這是您最致命的<b>「行為黑洞」</b>。
+              </p>
+            </div>
+
+            <div className="space-y-4 border-l border-white/10 pl-8">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-black">02</span>
+                <span className="text-sm font-black text-emerald-400 uppercase tracking-widest">尋找「獲利地圖」</span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                <b>綠色標籤</b>代表您在該心理狀態下能發揮最高水準。試著在下次交易前，刻意營造或回歸到這些穩定的情緒環境中。
+              </p>
+            </div>
+
+            <div className="space-y-4 border-l border-white/10 pl-8">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-black">03</span>
+                <span className="text-sm font-black text-amber-400 uppercase tracking-widest">紀律分水嶺</span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                左方的紀律百分比若<b>低於 70%</b>，代表您正處於「亂打」狀態。獲利可能是運氣，虧損則是必然。建議暫停實盤交易，回歸模擬檢討。
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3">
+              <i className="fas fa-info-circle text-indigo-400"></i>
+              <span className="text-xs font-bold text-slate-400 italic">💡 專業建議：針對紅條最長的情緒，建立「熔斷機制」——只要感覺到了，立刻關掉電腦。</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

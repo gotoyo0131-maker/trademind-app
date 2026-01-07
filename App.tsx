@@ -39,7 +39,9 @@ const App: React.FC = () => {
         password: '123', 
         role: 'admin', 
         createdAt: new Date().toISOString(),
-        isActive: true
+        isActive: true,
+        initialBalance: 0,
+        useInitialBalance: false
       };
       setUsers([defaultAdmin]);
       localStorage.setItem('trademind_users', JSON.stringify([defaultAdmin]));
@@ -178,9 +180,11 @@ const App: React.FC = () => {
         {activeTab === 'dashboard' && (
           <Dashboard 
             trades={userTrades} 
+            currentUser={currentUser}
             onViewLogs={() => { setActiveTab('logs'); setLogSearchTerm(''); }} 
             onDateClick={handleDateClick} 
             onAddFirstTrade={() => setActiveTab('add')}
+            onGoToSettings={() => setActiveTab('settings')}
           />
         )}
         {activeTab === 'logs' && (
@@ -224,10 +228,11 @@ const App: React.FC = () => {
           <SetupSettings 
             options={setups} 
             symbolOptions={symbols} 
-            trades={trades} // 這裡傳遞全局 trades 用於備份
-            currentUserId={currentUser.id} 
+            trades={trades} 
+            currentUser={currentUser}
             onUpdate={setSetups} 
             onUpdateSymbols={setSymbols} 
+            onUpdateUser={handleUpdateUser}
             onResetData={() => { if(confirm('重置後將清空所有交易資料，確定嗎？')) { setTrades([]); } }} 
             onImportData={(data) => { 
               setTrades(data.trades); 

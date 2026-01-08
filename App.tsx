@@ -26,7 +26,6 @@ const App: React.FC = () => {
   const [isDeactivated, setIsDeactivated] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   
-  // 使用 Ref 來避免重複觸發載入
   const isFetchingRef = useRef(false);
 
   const handleLogout = useCallback(async () => {
@@ -57,13 +56,16 @@ const App: React.FC = () => {
     }, 500);
   }, []);
 
+  // Fix for line 185: Added handleRetry function to allow users to refresh the page when an error occurs.
+  const handleRetry = useCallback(() => {
+    window.location.reload();
+  }, []);
+
   const loadUserData = useCallback(async (userId: string, email: string, metadata?: any) => {
-    // 如果已經在抓取中，就不要重複執行
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     
     setLoadError(null);
-    // 關鍵優化：如果已經有使用者資料，不要顯示全螢幕加載（避免蓋掉儀表板）
     if (!currentUser) {
       setIsLoading(true);
     }
@@ -77,7 +79,8 @@ const App: React.FC = () => {
         return;
       }
 
-      const tradeData = await fetchTrades();
+      // 更新：傳入 userId，確保只抓到自己的交易
+      const tradeData = await fetchTrades(userId);
       
       if (!profile || !profile.email) {
         const newProfile = {
@@ -131,14 +134,9 @@ const App: React.FC = () => {
     }
   }, [currentUser, handleLogout]);
 
-  const handleRetry = () => {
-    window.location.reload();
-  };
-
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        // 只有在剛登入或 Session 初始化時執行深度載入
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
           await loadUserData(session.user.id, session.user.email!, session.user.user_metadata);
         }
@@ -211,7 +209,6 @@ const App: React.FC = () => {
     );
   }
 
-  // 修改：只有在真的需要抓取初始身分且尚未抓到時，才顯示全螢幕加載
   if (isLoading && !currentUser) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] gap-4 text-center p-6">
@@ -288,7 +285,7 @@ const App: React.FC = () => {
           return saveTrade({ ...tradeToSave, userId: currentUser.id });
         });
         await Promise.all(promises);
-        const tradeData = await fetchTrades();
+        const tradeData = await fetchTrades(currentUser.id);
         setTrades(tradeData);
       }
       alert('匯入完成！');

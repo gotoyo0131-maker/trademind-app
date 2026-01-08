@@ -12,16 +12,18 @@ const isValidUUID = (id: string) => {
   return id && regex.test(id);
 };
 
-export const fetchTrades = async () => {
+// 更新：強制要求 userId 參數
+export const fetchTrades = async (userId: string) => {
   const { data, error } = await supabase
     .from('trades')
     .select('*')
+    .eq('user_id', userId) // 關鍵：在此過濾使用者 ID
     .order('entry_time', { ascending: false });
   
   if (error) {
     console.error("Fetch trades error:", error);
     if (error.message?.includes('infinite recursion') || error.message?.includes('deadlock')) {
-      throw new Error("無限遞迴死鎖：資料庫正在循環查詢權限。請執行最新 SQL 修正並使用『深度清理』按鈕。");
+      throw new Error("系統連線衝突。請使用『深度清理』按鈕重新啟動。");
     }
     return [];
   }
@@ -60,10 +62,7 @@ export const fetchProfile = async (userId: string) => {
   
   if (error) {
     if (error.code === 'PGRST116') return null;
-    if (error.message?.includes('infinite recursion') || error.message?.includes('deadlock')) {
-      throw new Error("無限遞迴死鎖：資料庫正在循環查詢權限。請執行最新 SQL 修正並使用『深度清理』按鈕。");
-    }
-    throw error;
+    return null;
   }
   return data;
 };
@@ -102,10 +101,7 @@ export const fetchInvitations = async () => {
   const { data, error } = await supabase
     .from('user_invitations')
     .select('*');
-  if (error) {
-    console.error("Fetch invitations error:", error);
-    throw error;
-  }
+  if (error) throw error;
   return data || [];
 };
 
@@ -114,10 +110,7 @@ export const deleteInvitation = async (id: string) => {
     .from('user_invitations')
     .delete()
     .eq('id', id);
-  if (error) {
-    console.error("Delete invitation error:", error);
-    throw error;
-  }
+  if (error) throw error;
 };
 
 export const deleteInvitationsByEmail = async (email: string) => {

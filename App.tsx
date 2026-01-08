@@ -25,11 +25,8 @@ const App: React.FC = () => {
   const [loadError, setLoadError] = useState<{message: string, code?: string, canReset?: boolean} | null>(null);
   const [isDeactivated, setIsDeactivated] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  
-  const loadingTimeoutRef = useRef<any>(null);
 
   const handleLogout = useCallback(async () => {
-    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     setLoadError(null);
     setIsLoading(false);
     setCurrentUser(null);
@@ -42,25 +39,16 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // 改進版深度重置：不等待 API 回應，直接暴力刷新
   const handleDeepReset = useCallback(() => {
     setIsResetting(true);
-    
-    // 1. 立即清除所有可能導致死鎖的快取
     localStorage.clear();
     sessionStorage.clear();
-    
-    // 2. 清除 Cookie
     document.cookie.split(";").forEach((c) => {
       document.cookie = c
         .replace(/^ +/, "")
         .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
     });
-
-    // 3. 嘗試背景登出 (不 await，避免卡死)
     supabase.auth.signOut().catch(() => {});
-
-    // 4. 0.5 秒後強制重定向，模擬「手動清除暫存 + 重新整理」
     setTimeout(() => {
       window.location.replace(window.location.origin);
     }, 500);
@@ -71,17 +59,7 @@ const App: React.FC = () => {
     setIsLoading(true);
 
     try {
-      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-      
-      loadingTimeoutRef.current = setTimeout(() => {
-        setLoadError({ 
-          message: "連線死鎖檢測：資料庫 RLS 權限正在循環。這通常是因為舊的登入憑證與新安全政策衝突。", 
-          code: "RLS_RECURSION_TIMEOUT",
-          canReset: true
-        });
-        setIsLoading(false);
-      }, 5000);
-
+      // 獲取個人設定檔
       const profile = await fetchProfile(userId);
       
       if (profile && profile.is_active === false) {
@@ -90,9 +68,11 @@ const App: React.FC = () => {
         return;
       }
 
+      // 獲取交易數據
       const tradeData = await fetchTrades();
       
       if (!profile || !profile.email) {
+        // 首次登入初始化
         const newProfile = {
           id: userId,
           email: email,
@@ -114,6 +94,7 @@ const App: React.FC = () => {
         setSetups(DEFAULT_SETUPS);
         setSymbols(DEFAULT_SYMBOLS);
       } else {
+        // 現有使用者載入
         setCurrentUser({
           id: userId,
           username: email.split('@')[0],
@@ -131,14 +112,19 @@ const App: React.FC = () => {
       setLoadError(null);
     } catch (err: any) {
       console.error("Load Error:", err);
-      setLoadError({
-        message: "系統偵測到權限死鎖。請點擊下方的『深度清理』按鈕來解除瀏覽器鎖定狀態。",
-        code: "DB_ACCESS_DENIED_500",
-        canReset: true
-      });
+      // 只有當真的發生資料庫遞迴錯誤或權限錯誤時才顯示錯誤頁面
+      if (err.message?.includes('recursion') || err.message?.includes('deadlock') || err.message?.includes('policy')) {
+        setLoadError({
+          message: "系統偵測到權限存取異常。這通常與瀏覽器快取的舊憑證有關。",
+          code: err.code || "DB_ACCESS_CONFLICT",
+          canReset: true
+        });
+      } else {
+        // 一般網路波動則不跳轉錯誤頁面，僅記錄日誌
+        console.warn("Transient network error detected.");
+      }
     } finally {
       setIsLoading(false);
-      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     }
   }, [handleLogout]);
 
@@ -150,7 +136,6 @@ const App: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          setLoadError(null);
           await loadUserData(session.user.id, session.user.email!, session.user.user_metadata);
         }
       } else {
@@ -161,7 +146,6 @@ const App: React.FC = () => {
 
     return () => {
       subscription.unsubscribe();
-      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     };
   }, [loadUserData]);
 

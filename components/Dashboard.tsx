@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Trade, User, TradeDirection } from '../types';
 import TradeCalendar from './TradeCalendar';
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 
 interface DashboardProps {
@@ -65,13 +65,16 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
     const effectiveInitialBalance = currentUser.useInitialBalance ? (currentUser.initialBalance || 0) : 0;
     
     let runningEquity = effectiveInitialBalance;
-    const equityHistory = [{ name: '初始', equity: effectiveInitialBalance }, ...sortedTrades.map((t, idx) => {
-      runningEquity += t.pnlAmount;
-      return { 
-        name: new Date(t.exitTime).toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'}), 
-        equity: Number(runningEquity.toFixed(2))
-      };
-    })];
+    const equityHistory = [
+      { name: 'Start', equity: effectiveInitialBalance }, 
+      ...sortedTrades.map((t) => {
+        runningEquity += t.pnlAmount;
+        return { 
+          name: new Date(t.exitTime).toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'}), 
+          equity: Number(runningEquity.toFixed(2))
+        };
+      })
+    ];
 
     const totalLifetimePnl = sortedTrades.reduce((acc, t) => acc + t.pnlAmount, 0);
     const totalReturnPct = (currentUser.useInitialBalance && effectiveInitialBalance > 0) 
@@ -199,38 +202,46 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
+          <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
             {viewMode === 'monthly' ? (
               <div className="min-h-[420px]">
                 <TradeCalendar trades={trades} onDateClick={onDateClick} currentDate={currentDate} setCurrentDate={setCurrentDate} />
               </div>
             ) : (
-              <div className="flex flex-col">
-                <div className="flex justify-between items-center mb-6 px-2">
+              <div className="flex flex-col w-full">
+                <div className="flex justify-between items-center mb-8 px-2">
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                    <i className="fas fa-chart-line text-indigo-500"></i> {currentUser.useInitialBalance ? '資產增長曲線 (Growth)' : '累計盈虧趨勢 (PnL)'}
+                    <i className="fas fa-chart-line text-indigo-500"></i> {currentUser.useInitialBalance ? '資產增長曲線 (Equity)' : '累計盈虧趨勢 (PnL)'}
                   </h3>
-                  {currentUser.useInitialBalance && (
-                    <span className="text-[10px] font-black text-slate-400">BASE: ${currentUser.initialBalance?.toLocaleString()}</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Live Metrics</span>
+                  </div>
                 </div>
-                {/* 關鍵修正：給予 ResponsiveContainer 的直接父層一個明確的高度 */}
-                <div className="h-[350px] w-full relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats?.equityHistory || []}>
-                      <defs>
-                        <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
+                
+                {/* 修正：增加 key 屬性強制重新掛載，並使用 LineChart 提升相容性 */}
+                <div className="h-[350px] w-full block relative min-w-0" style={{ display: 'block' }}>
+                  <ResponsiveContainer width="100%" height="100%" debounce={100}>
+                    <LineChart 
+                      key={`chart-${trades.length}-${currentUser.useInitialBalance}`}
+                      data={stats?.equityHistory || []} 
+                      margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" fontSize={9} tickMargin={10} axisLine={false} tickLine={false} />
+                      <XAxis 
+                        dataKey="name" 
+                        fontSize={10} 
+                        tickMargin={10} 
+                        axisLine={false} 
+                        tickLine={false} 
+                        stroke="#94a3b8"
+                      />
                       <YAxis 
                         domain={['auto', 'auto']} 
                         fontSize={10} 
                         axisLine={false} 
                         tickLine={false}
+                        stroke="#94a3b8"
                         tickFormatter={(val) => {
                           if (Math.abs(val) >= 1000) return `$${(val/1000).toFixed(1)}k`;
                           return `$${val}`;
@@ -238,10 +249,26 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
                       />
                       <Tooltip 
                         formatter={(val: number) => [`$${val.toLocaleString()}`, currentUser.useInitialBalance ? '資產淨值' : '累計盈虧']}
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                        contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: 'none', 
+                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          padding: '12px'
+                        }}
                       />
-                      <Area type="monotone" dataKey="equity" stroke="#4f46e5" strokeWidth={3} fill="url(#colorEquity)" animationDuration={1000} />
-                    </AreaChart>
+                      <ReferenceLine y={currentUser.useInitialBalance ? currentUser.initialBalance || 0 : 0} stroke="#cbd5e1" strokeDasharray="3 3" />
+                      <Line 
+                        type="monotone" 
+                        dataKey="equity" 
+                        stroke="#4f46e5" 
+                        strokeWidth={4} 
+                        dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 6, strokeWidth: 0 }}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>

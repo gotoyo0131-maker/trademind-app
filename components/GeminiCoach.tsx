@@ -7,21 +7,11 @@ interface GeminiCoachProps {
   trades: Trade[];
 }
 
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
-
 const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
-  const [status, setStatus] = useState<'IDLE' | 'NEED_KEY' | 'ERROR'>('IDLE');
+  const [status, setStatus] = useState<'IDLE' | 'ERROR'>('IDLE');
   const [errorDetail, setErrorDetail] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -52,34 +42,13 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
       const result = await analyzeTradeHistory(trades);
       setAnalysis(result);
     } catch (e: any) {
-      const msg = e.message || "";
-      if (msg === "API_KEY_MISSING" || msg === "ENTITY_NOT_FOUND") {
-        setStatus('NEED_KEY');
-        if (msg === "ENTITY_NOT_FOUND") {
-          setErrorDetail("目前的金鑰不支援 Gemini 3。請確認您在 Vercel 設定的是正確的金鑰，或點擊下方連結手動授權。");
-        }
-      } else {
-        setStatus('ERROR');
-        setErrorDetail(msg);
-      }
+      // Fix: Strictly handle generic errors without prohibited API key UI prompts.
+      setStatus('ERROR');
+      setErrorDetail(e.message || "分析過程中發生未知錯誤。");
     } finally {
       setIsLoading(false);
     }
   }, [trades]);
-
-  const handleManualLink = async () => {
-    if (window.aistudio) {
-      try {
-        await window.aistudio.openSelectKey();
-        setStatus('IDLE');
-        performAnalysis();
-      } catch (e) {
-        console.error("Key selection UI failed", e);
-      }
-    } else {
-      window.open('https://aistudio.google.com/app/apikey', '_blank');
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -114,41 +83,13 @@ const GeminiCoach: React.FC<GeminiCoachProps> = ({ trades }) => {
         </div>
       ) : (
         <div className="space-y-3">
-          {status === 'NEED_KEY' ? (
-            <div className="bg-white border-2 border-indigo-100 p-6 rounded-2xl shadow-xl animate-in slide-in-from-top-2">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-                  <i className="fas fa-exclamation-circle text-lg"></i>
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-sm font-black text-slate-800">尚未偵測到金鑰</h4>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">
-                    請至 Vercel 將您從 Google 複製的金鑰設定為 <b>API_KEY</b> 並重新部署。
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <button 
-                  onClick={handleManualLink}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg hover:bg-indigo-700 transition active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <i className="fas fa-external-link-alt"></i> 我想嘗試手動授權
-                </button>
-                <button 
-                  onClick={performAnalysis}
-                  className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition"
-                >
-                  我已在 Vercel 設定好，再次嘗試
-                </button>
-              </div>
-            </div>
-          ) : status === 'ERROR' ? (
+          {status === 'ERROR' ? (
             <div className="bg-rose-50 border border-rose-100 p-5 rounded-2xl space-y-3">
               <div className="flex items-center gap-2 text-rose-600 font-black text-[10px] uppercase">
-                <i className="fas fa-bug"></i> 錯誤細節
+                <i className="fas fa-bug"></i> 執行錯誤
               </div>
               <p className="text-[10px] text-rose-700 font-mono bg-white/50 p-3 rounded-lg break-all">{errorDetail}</p>
-              <button onClick={performAnalysis} className="w-full py-3 bg-rose-600 text-white rounded-xl text-xs font-bold">重試</button>
+              <button onClick={performAnalysis} className="w-full py-3 bg-rose-600 text-white rounded-xl text-xs font-bold transition hover:bg-rose-700 active:scale-95">重試</button>
             </div>
           ) : (
             <button 

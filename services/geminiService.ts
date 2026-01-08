@@ -5,15 +5,9 @@ import { Trade } from "../types";
 export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   if (trades.length === 0) return "尚無數據可供分析。";
 
-  // 嚴格遵守指令：從 process.env.API_KEY 獲取金鑰
-  // 使用定義檢查以確保在編譯階段不會報錯
-  const apiKey = typeof process !== 'undefined' && process.env ? process.env.API_KEY : (window as any).process?.env?.API_KEY;
-
-  if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
-    throw new Error("API_KEY_MISSING");
-  }
-
-  const ai = new GoogleGenAI({ apiKey: apiKey });
+  // Fix: Initialize GoogleGenAI strictly using process.env.API_KEY as per guidelines.
+  // The SDK requires a named parameter object: { apiKey: string }.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const tradeSummary = trades.slice(-15).map(t => ({
     symbol: t.symbol,
@@ -37,21 +31,19 @@ export const analyzeTradeHistory = async (trades: Trade[]): Promise<string> => {
   `;
 
   try {
+    // Fix: Using gemini-3-pro-preview for complex reasoning task as per guidelines.
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         temperature: 0.7,
-        thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
+    // Fix: Accessing .text property directly (not as a method).
     return response.text || "無法產出分析內容。";
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    if (error.message?.includes("403") || error.message?.includes("401")) {
-      throw new Error("API_KEY_INVALID");
-    }
     throw error;
   }
 };

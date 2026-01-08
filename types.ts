@@ -4,12 +4,17 @@ export type Role = 'admin' | 'user';
 export interface User {
   id: string;
   username: string;
-  password?: string;
+  email?: string;
+  password?: string; // 為了讓管理員能在後台查看
   role: Role;
   createdAt: string;
-  isActive?: boolean;
   initialBalance?: number;
   useInitialBalance?: boolean;
+}
+
+export interface GitHubConfig {
+  token: string;
+  gistId?: string;
 }
 
 export enum TradeDirection {
@@ -48,7 +53,7 @@ export interface Trade {
   setup: string;
   stopLoss?: number;
   takeProfit?: number;
-  initialRisk?: number; // 新增：初始風險金額
+  initialRisk?: number;
   confidence: number;
   emotions: string;
   preTradeMindset?: string;
@@ -61,9 +66,4 @@ export interface Trade {
   pnlPercentage: number;
   riskRewardRatio?: number;
   screenshots: TradeScreenshot[];
-}
-
-export interface GitHubConfig {
-  token: string;
-  gistId?: string;
 }

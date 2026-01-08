@@ -25,6 +25,9 @@ const App: React.FC = () => {
   const [loadError, setLoadError] = useState<{message: string, code?: string, canReset?: boolean} | null>(null);
   const [isDeactivated, setIsDeactivated] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  
+  // 使用 Ref 來避免重複觸發載入
+  const isFetchingRef = useRef(false);
 
   const handleLogout = useCallback(async () => {
     setLoadError(null);
@@ -55,11 +58,17 @@ const App: React.FC = () => {
   }, []);
 
   const loadUserData = useCallback(async (userId: string, email: string, metadata?: any) => {
+    // 如果已經在抓取中，就不要重複執行
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    
     setLoadError(null);
-    setIsLoading(true);
+    // 關鍵優化：如果已經有使用者資料，不要顯示全螢幕加載（避免蓋掉儀表板）
+    if (!currentUser) {
+      setIsLoading(true);
+    }
 
     try {
-      // 獲取個人設定檔
       const profile = await fetchProfile(userId);
       
       if (profile && profile.is_active === false) {
@@ -68,11 +77,9 @@ const App: React.FC = () => {
         return;
       }
 
-      // 獲取交易數據
       const tradeData = await fetchTrades();
       
       if (!profile || !profile.email) {
-        // 首次登入初始化
         const newProfile = {
           id: userId,
           email: email,
@@ -94,7 +101,6 @@ const App: React.FC = () => {
         setSetups(DEFAULT_SETUPS);
         setSymbols(DEFAULT_SYMBOLS);
       } else {
-        // 現有使用者載入
         setCurrentUser({
           id: userId,
           username: email.split('@')[0],
@@ -112,21 +118,18 @@ const App: React.FC = () => {
       setLoadError(null);
     } catch (err: any) {
       console.error("Load Error:", err);
-      // 只有當真的發生資料庫遞迴錯誤或權限錯誤時才顯示錯誤頁面
       if (err.message?.includes('recursion') || err.message?.includes('deadlock') || err.message?.includes('policy')) {
         setLoadError({
           message: "系統偵測到權限存取異常。這通常與瀏覽器快取的舊憑證有關。",
           code: err.code || "DB_ACCESS_CONFLICT",
           canReset: true
         });
-      } else {
-        // 一般網路波動則不跳轉錯誤頁面，僅記錄日誌
-        console.warn("Transient network error detected.");
       }
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [handleLogout]);
+  }, [currentUser, handleLogout]);
 
   const handleRetry = () => {
     window.location.reload();
@@ -135,6 +138,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        // 只有在剛登入或 Session 初始化時執行深度載入
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
           await loadUserData(session.user.id, session.user.email!, session.user.user_metadata);
         }
@@ -207,7 +211,8 @@ const App: React.FC = () => {
     );
   }
 
-  if (isLoading) {
+  // 修改：只有在真的需要抓取初始身分且尚未抓到時，才顯示全螢幕加載
+  if (isLoading && !currentUser) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] gap-4 text-center p-6">
         <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(79,70,229,0.3)]"></div>

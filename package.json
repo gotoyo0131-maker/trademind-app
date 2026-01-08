@@ -1,25 +1,25 @@
+
 {
-  "name": "專業交易日誌---屬於您的交易管理專家",
+  "name": "trademind-pro",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
     "@google/genai": "^1.34.0",
-    "recharts": "2.12.7",
     "@supabase/supabase-js": "^2.48.1",
-    "vite": "^7.3.1"
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "recharts": "2.12.7"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "~5.7.2",
+    "vite": "^7.0.0"
   }
 }

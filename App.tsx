@@ -22,7 +22,7 @@ const App: React.FC = () => {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [logSearchTerm, setLogSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<{message: string, code?: string} | null>(null);
   const [isDeactivated, setIsDeactivated] = useState(false);
   
   const lastLoadedUserId = useRef<string | null>(null);
@@ -30,42 +30,53 @@ const App: React.FC = () => {
 
   const handleLogout = useCallback(async () => {
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-    await supabase.auth.signOut();
-    setCurrentUser(null);
-    lastLoadedUserId.current = null;
-    setIsDeactivated(false);
+    
+    // 立即重置 UI，讓畫面回到 Auth.tsx，這不依賴網路
     setLoadError(null);
     setIsLoading(false);
+    setCurrentUser(null);
+    setTrades([]);
+    setActiveTab('dashboard');
+    lastLoadedUserId.current = null;
+    
+    try {
+      // 嘗試清除 Supabase Session
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn("SignOut error:", e);
+    }
+    // 這裡嚴禁使用 window.location.reload()
   }, []);
 
   const loadUserData = useCallback(async (userId: string, email: string, metadata?: any) => {
-    // 如果已經在加載同一個用戶，避免重複觸發
-    if (lastLoadedUserId.current === userId && currentUser && !loadError) {
-      setIsLoading(false);
-      return;
-    }
-    
+    // 避免重複觸發載入
+    if (isLoading && lastLoadedUserId.current === userId) return;
+
     setLoadError(null);
     setIsLoading(true);
     lastLoadedUserId.current = userId;
 
     try {
-      // 設置逾時保護
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      
       loadingTimeoutRef.current = setTimeout(() => {
-        setLoadError("連線逾時。這通常是因為資料庫 RLS 策略遞迴導致的死鎖。請確保您已執行最新的 SQL 修正補丁。");
+        setLoadError({ 
+          message: "連線超時。資料庫 RLS 權限檢查可能仍處於死鎖狀態 (Recursion Deadlock)。", 
+          code: "TIMEOUT_DB" 
+        });
         setIsLoading(false);
-      }, 12000);
+      }, 10000);
 
+      // 1. 優先獲取 Profile
       const profile = await fetchProfile(userId);
       
       if (profile && profile.is_active === false) {
         setIsDeactivated(true);
         setTimeout(() => handleLogout(), 3000);
-        if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
         return;
       }
 
+      // 2. 獲取交易資料 (如果 profile 載入成功，這裡通常也會成功)
       const tradeData = await fetchTrades();
       
       if (!profile || !profile.email) {
@@ -104,17 +115,34 @@ const App: React.FC = () => {
       }
       
       setTrades(tradeData);
-      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       setLoadError(null);
     } catch (err: any) {
-      console.error("Load user data error:", err);
-      if (!loadError) {
-        setLoadError("載入失敗：" + (err.message || "發生未知錯誤"));
-      }
+      console.error("Critical Load Error:", err);
+      // 針對 500 錯誤提供特定的 SQL 補丁建議
+      const isRecursion = err.message?.includes('recursion') || err.message?.includes('infinite');
+      setLoadError({
+        message: isRecursion 
+          ? "無限遞迴死鎖：資料庫正在循環查詢權限，請執行最新的 SQL 修正補丁 (is_admin_v2)。" 
+          : (err.message || "發生未知載入錯誤，請檢查網路連線。"),
+        code: isRecursion ? "RLS_RECURSION_500" : (err.code || "FETCH_FAILED")
+      });
     } finally {
       setIsLoading(false);
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     }
-  }, [currentUser, handleLogout, loadError]);
+  }, [handleLogout]);
+
+  const handleRetry = () => {
+    setLoadError(null);
+    setIsLoading(true);
+    supabase.auth.getSession().then(({data}) => {
+      if (data.session?.user) {
+        loadUserData(data.session.user.id, data.session.user.email!);
+      } else {
+        handleLogout();
+      }
+    });
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -138,53 +166,63 @@ const App: React.FC = () => {
 
   if (loadError) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-6 text-center">
-        <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center text-3xl mb-6">
-          <i className="fas fa-exclamation-triangle"></i>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] p-6 text-center">
+        <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mb-6 border border-rose-500/20 shadow-2xl shadow-rose-500/10">
+          <i className="fas fa-database"></i>
         </div>
-        <h1 className="text-xl font-black text-white mb-2 uppercase">資料載入失敗</h1>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl mb-8 max-w-sm">
-          <p className="text-slate-400 text-xs font-mono leading-relaxed text-left">
-            {loadError}
+        <h1 className="text-xl font-black text-white mb-2 uppercase tracking-tight">系統連線異常</h1>
+        
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl mb-8 max-w-md w-full shadow-2xl">
+          <p className="text-slate-400 text-xs leading-relaxed mb-4">
+            {loadError.message}
           </p>
+          <div className="bg-black/50 p-3 rounded-xl text-left border border-slate-800">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Error Diagnostics</p>
+            <p className="text-[10px] font-mono text-rose-400 break-all">ID: {loadError.code || 'UNKNOWN'}</p>
+          </div>
         </div>
-        <div className="flex gap-4">
+
+        <div className="flex flex-col gap-3 w-full max-w-xs">
           <button 
-            onClick={() => window.location.reload()} 
-            className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20"
+            onClick={handleRetry} 
+            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98]"
           >
-            重新載入
+            嘗試重新載入 (Retry)
           </button>
           <button 
             onClick={handleLogout} 
-            className="px-8 py-3 bg-slate-800 text-slate-300 rounded-xl font-bold hover:bg-slate-700 transition-all"
+            className="w-full py-4 bg-slate-800 text-slate-400 rounded-2xl font-black hover:bg-slate-700 transition-all text-xs"
           >
-            登出
+            切換帳號或登出
           </button>
         </div>
+        
+        <p className="mt-8 text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em]">
+          請確保已執行「防死鎖」SQL 指令以解除 RLS 循環
+        </p>
       </div>
     );
   }
 
   if (isDeactivated) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-6 text-center">
-        <div className="w-20 h-20 bg-rose-500/20 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mb-6 animate-bounce">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] p-6 text-center">
+        <div className="w-20 h-20 bg-rose-500/20 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mb-6">
           <i className="fas fa-user-slash"></i>
         </div>
-        <h1 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">存取遭拒 ACCESS DENIED</h1>
-        <p className="text-slate-400 text-sm font-medium max-w-xs">您的帳號已被管理員暫停使用。系統將在 3 秒內自動登出。</p>
+        <h1 className="text-2xl font-black text-white mb-2">帳號存取受限</h1>
+        <p className="text-slate-400 text-sm font-medium">請聯繫系統管理員以恢復您的存取權限。</p>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 gap-4 text-center p-6">
-        <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] gap-4 text-center p-6">
+        <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(79,70,229,0.3)]"></div>
         <div className="space-y-1">
-          <p className="text-[10px] font-black text-indigo-500 animate-pulse uppercase tracking-[0.4em]">Secure System Booting</p>
-          <p className="text-slate-600 text-[8px] uppercase tracking-widest font-bold">Verifying Encrypted Identity...</p>
+          <p className="text-[10px] font-black text-indigo-500 animate-pulse uppercase tracking-[0.4em]">Secure Database Link</p>
+          <p className="text-slate-600 text-[8px] uppercase tracking-widest font-bold">Verifying Identity Layers...</p>
         </div>
       </div>
     );

@@ -161,27 +161,27 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">進場價</label>
-                    <input type="number" step="any" value={formData.entryPrice || ''} onChange={e => setFormData({...formData, entryPrice: Number(e.target.value)})} className="w-full p-3 border border-slate-200 rounded-xl font-bold" />
+                    <input type="number" step="any" value={formData.entryPrice || ''} onChange={e => setFormData({...formData, entryPrice: Number(e.target.value)})} className="w-full p-3 border border-slate-200 rounded-xl font-bold focus:border-indigo-500 outline-none transition-all" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">出場價</label>
-                    <input type="number" step="any" value={formData.exitPrice || ''} onChange={e => setFormData({...formData, exitPrice: Number(e.target.value)})} className="w-full p-3 border border-slate-200 rounded-xl font-bold" />
+                    <input type="number" step="any" value={formData.exitPrice || ''} onChange={e => setFormData({...formData, exitPrice: Number(e.target.value)})} className="w-full p-3 border border-slate-200 rounded-xl font-bold focus:border-indigo-500 outline-none transition-all" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">數量</label>
-                    <input type="number" step="any" value={formData.size || ''} onChange={e => setFormData({...formData, size: Number(e.target.value)})} className="w-full p-3 border border-slate-200 rounded-xl font-bold" />
-                  </div>
-                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">費用與滑點</label>
-                    <input type="number" step="any" value={formData.fees || ''} onChange={e => setFormData({...formData, fees: Number(e.target.value)})} className="w-full p-3 border border-slate-200 rounded-xl font-bold" placeholder="手續費" />
+                    <input type="number" step="any" value={formData.size || ''} onChange={e => setFormData({...formData, size: Number(e.target.value)})} className="w-full p-3 border border-slate-200 rounded-xl font-bold focus:border-indigo-500 outline-none transition-all" />
                   </div>
                   <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">手續費/費用</label>
+                    <input type="number" step="any" value={formData.fees || ''} onChange={e => setFormData({...formData, fees: Number(e.target.value)})} className="w-full p-3 border border-slate-200 rounded-xl font-bold focus:border-indigo-500 outline-none transition-all" />
+                  </div>
+                  <div className="col-span-1 space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">進場時間</label>
-                    <input type="datetime-local" value={formData.entryTime} onChange={e => setFormData({...formData, entryTime: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl text-[10px] font-bold" />
+                    <input type="datetime-local" value={formData.entryTime} onChange={e => setFormData({...formData, entryTime: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl text-[11px] font-bold outline-none" />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-indigo-500">出場時間</label>
-                    <input type="datetime-local" value={formData.exitTime} onChange={e => setFormData({...formData, exitTime: e.target.value})} className="w-full p-3 border-2 border-indigo-100 rounded-xl text-[10px] font-bold" />
+                  <div className="col-span-1 space-y-1">
+                    <label className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">出場時間</label>
+                    <input type="datetime-local" value={formData.exitTime} onChange={e => setFormData({...formData, exitTime: e.target.value})} className="w-full p-3 border-2 border-indigo-100 bg-indigo-50/20 rounded-xl text-[11px] font-bold outline-none focus:border-indigo-500 transition-all" />
                   </div>
                 </div>
               </div>
@@ -193,21 +193,21 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2 space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">進場策略 (Setup)</label>
-                    <select value={formData.setup} onChange={e => setFormData({...formData, setup: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-indigo-600">
+                    <select value={formData.setup} onChange={e => setFormData({...formData, setup: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-indigo-600 outline-none">
                       {setupOptions.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">止損 (SL)</label>
-                    <input type="number" step="any" value={formData.stopLoss || ''} onChange={e => setFormData({...formData, stopLoss: Number(e.target.value)})} className="w-full p-3 border border-rose-100 bg-rose-50/30 rounded-xl font-bold text-rose-600" />
+                    <input type="number" step="any" value={formData.stopLoss || ''} onChange={e => setFormData({...formData, stopLoss: Number(e.target.value)})} className="w-full p-3 border border-rose-100 bg-rose-50/30 rounded-xl font-bold text-rose-600 outline-none" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">止盈 (TP)</label>
-                    <input type="number" step="any" value={formData.takeProfit || ''} onChange={e => setFormData({...formData, takeProfit: Number(e.target.value)})} className="w-full p-3 border border-emerald-100 bg-emerald-50/30 rounded-xl font-bold text-emerald-600" />
+                    <input type="number" step="any" value={formData.takeProfit || ''} onChange={e => setFormData({...formData, takeProfit: Number(e.target.value)})} className="w-full p-3 border border-emerald-100 bg-emerald-50/30 rounded-xl font-bold text-emerald-600 outline-none" />
                   </div>
                   <div className="col-span-2 space-y-1">
                     <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">初始風險金額 ($)</label>
+                      <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">預期風險金額 ($)</label>
                       {riskCalculation.rr > 0 && <span className="text-[9px] font-black px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md">R:R: {riskCalculation.rr.toFixed(2)}</span>}
                     </div>
                     <input 
@@ -217,7 +217,6 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
                       className="w-full p-4 bg-white border-2 border-indigo-200 rounded-2xl outline-none font-black text-xl text-slate-700 focus:border-indigo-500 transition-all placeholder:text-slate-300" 
                       placeholder="這筆打算賠多少？" 
                     />
-                    
                     {riskCalculation.suggestedRisk > 0 && (
                       <div 
                         onClick={() => setFormData({...formData, initialRisk: Number(riskCalculation.suggestedRisk.toFixed(2))})}
@@ -256,12 +255,12 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">進場前心態 (Pre-trade Mindset)</label>
-                <textarea rows={2} value={formData.preTradeMindset} onChange={e => setFormData({...formData, preTradeMindset: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs" placeholder="當時是否有焦慮、FOMO 或過度自信？" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">進場前心態</label>
+                <textarea rows={2} value={formData.preTradeMindset} onChange={e => setFormData({...formData, preTradeMindset: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs outline-none focus:border-indigo-500" placeholder="當時是否有焦慮、FOMO 或過度自信？" />
               </div>
               <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">執行過程筆記 (Notes on Execution)</label>
-                <textarea rows={2} value={formData.notesOnExecution} onChange={e => setFormData({...formData, notesOnExecution: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs" placeholder="是否嚴格執行計畫？中途是否有亂動止損？" />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">執行過程筆記</label>
+                <textarea rows={2} value={formData.notesOnExecution} onChange={e => setFormData({...formData, notesOnExecution: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs outline-none focus:border-indigo-500" placeholder="是否嚴格執行計畫？中途是否有亂動止損？" />
               </div>
             </div>
 
@@ -292,7 +291,7 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest">錯誤分類</label>
-                <select value={formData.errorCategory} onChange={e => setFormData({...formData, errorCategory: e.target.value as ErrorCategory})} className="w-full p-3 bg-rose-50 border border-rose-100 rounded-xl font-black text-rose-600">
+                <select value={formData.errorCategory} onChange={e => setFormData({...formData, errorCategory: e.target.value as ErrorCategory})} className="w-full p-3 bg-rose-50 border border-rose-100 rounded-xl font-black text-rose-600 outline-none">
                   {Object.values(ErrorCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
               </div>
@@ -301,21 +300,21 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">一句話總結</label>
-                <input type="text" value={formData.summary} onChange={e => setFormData({...formData, summary: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" />
+                <input type="text" value={formData.summary} onChange={e => setFormData({...formData, summary: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:border-indigo-500" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">具體改進點</label>
-                <textarea rows={2} value={formData.improvements} onChange={e => setFormData({...formData, improvements: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm" />
+                <textarea rows={2} value={formData.improvements} onChange={e => setFormData({...formData, improvements: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-indigo-500" />
               </div>
             </div>
           </div>
         )}
 
         <div className="flex justify-between gap-4 pt-10">
-          <button type="button" onClick={step === 1 ? onCancel : () => setStep(1)} className="px-8 py-4 bg-slate-100 text-slate-500 font-black text-xs rounded-2xl">
+          <button type="button" onClick={step === 1 ? onCancel : () => setStep(1)} className="px-8 py-4 bg-slate-100 text-slate-500 font-black text-xs rounded-2xl hover:bg-slate-200 transition">
             {step === 1 ? '取消' : '回上一步'}
           </button>
-          <button type="submit" className="flex-grow py-4 bg-indigo-600 text-white font-black text-xs rounded-2xl shadow-xl">
+          <button type="submit" className="flex-grow py-4 bg-indigo-600 text-white font-black text-xs rounded-2xl shadow-xl hover:bg-indigo-700 transition active:scale-95">
             {step === 1 ? '下一步：心理檢討 →' : '儲存紀錄'}
           </button>
         </div>

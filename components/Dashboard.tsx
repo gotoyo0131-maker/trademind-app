@@ -41,7 +41,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
 
   // 2. 核心統計計算
   const stats = useMemo(() => {
-    if (filteredTrades.length === 0 && sortedTrades.length === 0) return null;
+    if (trades.length === 0) return null;
 
     const currentDisplayTrades = filteredTrades;
     const wins = currentDisplayTrades.filter(t => t.pnlAmount > 0);
@@ -65,9 +65,12 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
     const effectiveInitialBalance = currentUser.useInitialBalance ? (currentUser.initialBalance || 0) : 0;
     
     let runningEquity = effectiveInitialBalance;
-    const equityHistory = [{ name: 'Start', equity: effectiveInitialBalance }, ...sortedTrades.map((t, idx) => {
+    const equityHistory = [{ name: '初始', equity: effectiveInitialBalance }, ...sortedTrades.map((t, idx) => {
       runningEquity += t.pnlAmount;
-      return { name: `T-${idx + 1}`, equity: runningEquity };
+      return { 
+        name: new Date(t.exitTime).toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'}), 
+        equity: Number(runningEquity.toFixed(2))
+      };
     })];
 
     const totalLifetimePnl = sortedTrades.reduce((acc, t) => acc + t.pnlAmount, 0);
@@ -83,7 +86,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
     };
   }, [filteredTrades, sortedTrades, currentUser]);
 
-  // 如果還沒有任何交易，顯示針對新用戶的導引頁面
   if (trades.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80vh] animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -104,7 +106,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
             <i className="fas fa-plus-circle"></i> 開始記錄第一筆交易
           </button>
 
-          {/* 僅針對新用戶展示的進階功能提示 */}
           <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm group hover:border-indigo-300 transition-all text-left relative overflow-hidden">
             <div className="absolute top-[-20px] right-[-20px] text-slate-50 opacity-10 rotate-12 group-hover:text-indigo-100 transition-colors">
               <i className="fas fa-chart-line text-[120px]"></i>
@@ -135,7 +136,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-      {/* Header 與 切換器 */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">
@@ -151,7 +151,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
         </div>
       </header>
 
-      {/* 資產淨值概覽橫幅 (已開啟本金配置時) */}
       {currentUser.useInitialBalance && stats && (
         <div className="bg-gradient-to-r from-slate-900 to-indigo-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group animate-in slide-in-from-top duration-700">
           <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition duration-700">
@@ -183,7 +182,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
         </div>
       )}
 
-      {/* 頂部五大核心指標 */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: '總交易筆數', value: stats?.count || 0, color: 'text-slate-900' },
@@ -200,13 +198,14 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 左側：日曆或淨值圖 (縮小高度版本) */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm min-h-[420px]">
+          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
             {viewMode === 'monthly' ? (
-              <TradeCalendar trades={trades} onDateClick={onDateClick} currentDate={currentDate} setCurrentDate={setCurrentDate} />
+              <div className="min-h-[420px]">
+                <TradeCalendar trades={trades} onDateClick={onDateClick} currentDate={currentDate} setCurrentDate={setCurrentDate} />
+              </div>
             ) : (
-              <div className="h-full flex flex-col">
+              <div className="flex flex-col">
                 <div className="flex justify-between items-center mb-6 px-2">
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                     <i className="fas fa-chart-line text-indigo-500"></i> {currentUser.useInitialBalance ? '資產增長曲線 (Growth)' : '累計盈虧趨勢 (PnL)'}
@@ -215,9 +214,10 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
                     <span className="text-[10px] font-black text-slate-400">BASE: ${currentUser.initialBalance?.toLocaleString()}</span>
                   )}
                 </div>
-                <div className="flex-grow min-h-[280px]">
+                {/* 關鍵修正：給予 ResponsiveContainer 的直接父層一個明確的高度 */}
+                <div className="h-[350px] w-full relative">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats?.equityHistory}>
+                    <AreaChart data={stats?.equityHistory || []}>
                       <defs>
                         <linearGradient id="colorEquity" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
@@ -225,7 +225,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" hide />
+                      <XAxis dataKey="name" fontSize={9} tickMargin={10} axisLine={false} tickLine={false} />
                       <YAxis 
                         domain={['auto', 'auto']} 
                         fontSize={10} 
@@ -238,9 +238,9 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
                       />
                       <Tooltip 
                         formatter={(val: number) => [`$${val.toLocaleString()}`, currentUser.useInitialBalance ? '資產淨值' : '累計盈虧']}
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px' }}
                       />
-                      <Area type="monotone" dataKey="equity" stroke="#4f46e5" strokeWidth={3} fill="url(#colorEquity)" />
+                      <Area type="monotone" dataKey="equity" stroke="#4f46e5" strokeWidth={3} fill="url(#colorEquity)" animationDuration={1000} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -248,7 +248,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
             )}
           </div>
 
-          {/* 底部：持倉時間分析 */}
           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-8 flex items-center gap-2">
               <i className="fas fa-hourglass-half text-indigo-500"></i> {viewMode === 'overall' ? '歷史持倉時間' : '本月持倉時間'}
@@ -266,9 +265,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
           </div>
         </div>
 
-        {/* 右側：戰果卡片 */}
         <div className="space-y-6">
-          {/* 最佳交易 */}
           <div className="bg-white p-6 rounded-3xl border-t-4 border-t-emerald-500 border border-slate-100 shadow-sm group">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{viewMode === 'overall' ? '最佳交易 (BEST)' : '本月最佳交易'}</p>
             {stats?.bestTrade ? (
@@ -283,7 +280,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
             ) : <p className="text-xs text-slate-300 italic">尚無數據</p>}
           </div>
 
-          {/* 最差交易 */}
           <div className="bg-white p-6 rounded-3xl border-t-4 border-t-rose-500 border border-slate-100 shadow-sm">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{viewMode === 'overall' ? '最糟交易 (WORST)' : '本月最糟交易'}</p>
             {stats?.worstTrade ? (
@@ -298,7 +294,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
             ) : <p className="text-xs text-slate-300 italic">尚無數據</p>}
           </div>
 
-          {/* 方向分佈 */}
           <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden">
              <div className="relative z-10">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">{viewMode === 'overall' ? '總體方向分佈' : '本月方向分佈'}</p>

@@ -24,58 +24,64 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<{message: string, code?: string, canReset?: boolean} | null>(null);
   const [isDeactivated, setIsDeactivated] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   
-  const lastLoadedUserId = useRef<string | null>(null);
   const loadingTimeoutRef = useRef<any>(null);
 
   const handleLogout = useCallback(async () => {
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
-    
     setLoadError(null);
     setIsLoading(false);
     setCurrentUser(null);
     setTrades([]);
-    setActiveTab('dashboard');
-    lastLoadedUserId.current = null;
     
     try {
       await supabase.auth.signOut();
     } catch (e) {
-      console.warn("SignOut error:", e);
+      console.warn("SignOut ignore:", e);
     }
   }, []);
 
-  // 深度重置：取代「清除瀏覽器暫存」的手動操作
-  const handleDeepReset = useCallback(async () => {
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-      await handleLogout();
-      // 在虛擬環境中，強制刷新 UI 狀態
-      window.location.href = window.location.origin;
-    } catch (e) {
-      handleLogout();
-    }
-  }, [handleLogout]);
+  // 改進版深度重置：不等待 API 回應，直接暴力刷新
+  const handleDeepReset = useCallback(() => {
+    setIsResetting(true);
+    
+    // 1. 立即清除所有可能導致死鎖的快取
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // 2. 清除 Cookie
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+
+    // 3. 嘗試背景登出 (不 await，避免卡死)
+    supabase.auth.signOut().catch(() => {});
+
+    // 4. 0.5 秒後強制重定向，模擬「手動清除暫存 + 重新整理」
+    setTimeout(() => {
+      window.location.replace(window.location.origin);
+    }, 500);
+  }, []);
 
   const loadUserData = useCallback(async (userId: string, email: string, metadata?: any) => {
     setLoadError(null);
     setIsLoading(true);
-    lastLoadedUserId.current = userId;
 
     try {
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       
       loadingTimeoutRef.current = setTimeout(() => {
         setLoadError({ 
-          message: "資料庫回應過慢。這通常是權限死鎖造成的。", 
-          code: "DB_TIMEOUT",
+          message: "連線死鎖檢測：資料庫 RLS 權限正在循環。這通常是因為舊的登入憑證與新安全政策衝突。", 
+          code: "RLS_RECURSION_TIMEOUT",
           canReset: true
         });
         setIsLoading(false);
-      }, 8000);
+      }, 5000);
 
-      // 1. Profile
       const profile = await fetchProfile(userId);
       
       if (profile && profile.is_active === false) {
@@ -84,7 +90,6 @@ const App: React.FC = () => {
         return;
       }
 
-      // 2. Trades
       const tradeData = await fetchTrades();
       
       if (!profile || !profile.email) {
@@ -126,12 +131,9 @@ const App: React.FC = () => {
       setLoadError(null);
     } catch (err: any) {
       console.error("Load Error:", err);
-      const isRecursion = err.message?.includes('recursion') || err.message?.includes('infinite');
       setLoadError({
-        message: isRecursion 
-          ? "系統偵測到 RLS 權限死鎖。這可能是因為舊的快取狀態與新規則衝突。" 
-          : (err.message || "讀取失敗，請確認 SQL 已正確執行。"),
-        code: isRecursion ? "RLS_RECURSION_500" : (err.code || "ERR_500"),
+        message: "系統偵測到權限死鎖。請點擊下方的『深度清理』按鈕來解除瀏覽器鎖定狀態。",
+        code: "DB_ACCESS_DENIED_500",
         canReset: true
       });
     } finally {
@@ -141,29 +143,18 @@ const App: React.FC = () => {
   }, [handleLogout]);
 
   const handleRetry = () => {
-    setLoadError(null);
-    setIsLoading(true);
-    supabase.auth.getSession().then(({data}) => {
-      if (data.session?.user) {
-        loadUserData(data.session.user.id, data.session.user.email!);
-      } else {
-        handleLogout();
-      }
-    });
+    window.location.reload();
   };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          // 當新登入時，自動清除之前的錯誤
           setLoadError(null);
           await loadUserData(session.user.id, session.user.email!, session.user.user_metadata);
         }
       } else {
         setCurrentUser(null);
-        lastLoadedUserId.current = null;
-        setTrades([]);
         setIsLoading(false);
       }
     });
@@ -174,50 +165,48 @@ const App: React.FC = () => {
     };
   }, [loadUserData]);
 
+  if (isResetting) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] text-center p-6">
+        <div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-white font-black uppercase tracking-widest">正在強制清理快取...</p>
+      </div>
+    );
+  }
+
   if (loadError) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] p-6 text-center">
-        <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mb-6 border border-rose-500/20 shadow-2xl shadow-rose-500/10">
-          <i className="fas fa-plug-circle-exclamation"></i>
+        <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mb-6 border border-rose-500/20 shadow-2xl shadow-rose-500/10 animate-pulse">
+          <i className="fas fa-shield-virus"></i>
         </div>
-        <h1 className="text-xl font-black text-white mb-2 uppercase tracking-tight">存取連線死鎖</h1>
+        <h1 className="text-xl font-black text-white mb-2 uppercase tracking-tight">安全連線異常</h1>
         
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl mb-8 max-w-md w-full shadow-2xl">
           <p className="text-slate-400 text-xs leading-relaxed mb-4">
             {loadError.message}
           </p>
           <div className="bg-black/50 p-3 rounded-xl text-left border border-slate-800">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">診斷代碼</p>
-            <p className="text-[10px] font-mono text-rose-400 break-all">{loadError.code || 'UNKNOWN'}</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">連線診斷</p>
+            <p className="text-[10px] font-mono text-rose-400 break-all">{loadError.code}</p>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button 
-            onClick={handleRetry} 
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98]"
+            onClick={handleDeepReset} 
+            className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black hover:bg-rose-500 transition-all shadow-xl shadow-rose-600/20 active:scale-[0.98] flex items-center justify-center gap-2"
           >
-            直接重試 (Retry)
+            <i className="fas fa-broom"></i> 深度清理快取並登出
           </button>
           
           <button 
-            onClick={handleDeepReset} 
-            className="w-full py-4 bg-rose-600/10 text-rose-500 border border-rose-500/20 rounded-2xl font-black hover:bg-rose-600/20 transition-all text-xs flex items-center justify-center gap-2"
+            onClick={handleRetry} 
+            className="w-full py-4 bg-slate-800 text-slate-300 rounded-2xl font-black hover:bg-slate-700 transition-all text-xs"
           >
-            <i className="fas fa-trash-can"></i> 深度清理並登出 (推薦)
-          </button>
-
-          <button 
-            onClick={handleLogout} 
-            className="w-full py-4 text-slate-500 font-black text-[10px] uppercase hover:text-slate-300"
-          >
-            普通登出
+            直接重新整理 (Reload)
           </button>
         </div>
-        
-        <p className="mt-8 text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-          深度清理將移除本地 Session 快取以解除 RLS 衝突
-        </p>
       </div>
     );
   }

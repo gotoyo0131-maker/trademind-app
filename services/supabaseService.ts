@@ -20,8 +20,8 @@ export const fetchTrades = async () => {
   
   if (error) {
     console.error("Fetch trades error:", error);
-    if (error.message?.includes('infinite recursion')) {
-      throw new Error("資料庫安全檢查死鎖：請在 Supabase SQL Editor 執行最新的 check_is_admin() 修正補丁。");
+    if (error.message?.includes('infinite recursion') || error.message?.includes('deadlock')) {
+      throw new Error("無限遞迴死鎖：資料庫正在循環查詢權限。請執行最新 SQL 修正並使用『深度清理』按鈕。");
     }
     return [];
   }
@@ -60,8 +60,8 @@ export const fetchProfile = async (userId: string) => {
   
   if (error) {
     if (error.code === 'PGRST116') return null;
-    if (error.message?.includes('infinite recursion')) {
-      throw new Error("無限遞迴死鎖：資料庫正在循環查詢權限，這通常發生在重新整理後，請執行 SQL 修正補丁。");
+    if (error.message?.includes('infinite recursion') || error.message?.includes('deadlock')) {
+      throw new Error("無限遞迴死鎖：資料庫正在循環查詢權限。請執行最新 SQL 修正並使用『深度清理』按鈕。");
     }
     throw error;
   }

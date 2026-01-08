@@ -22,7 +22,7 @@ const App: React.FC = () => {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [logSearchTerm, setLogSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<{message: string, code?: string} | null>(null);
+  const [loadError, setLoadError] = useState<{message: string, code?: string, canReset?: boolean} | null>(null);
   const [isDeactivated, setIsDeactivated] = useState(false);
   
   const lastLoadedUserId = useRef<string | null>(null);
@@ -31,7 +31,6 @@ const App: React.FC = () => {
   const handleLogout = useCallback(async () => {
     if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
     
-    // 立即重置 UI，讓畫面回到 Auth.tsx，這不依賴網路
     setLoadError(null);
     setIsLoading(false);
     setCurrentUser(null);
@@ -40,18 +39,26 @@ const App: React.FC = () => {
     lastLoadedUserId.current = null;
     
     try {
-      // 嘗試清除 Supabase Session
       await supabase.auth.signOut();
     } catch (e) {
       console.warn("SignOut error:", e);
     }
-    // 這裡嚴禁使用 window.location.reload()
   }, []);
 
-  const loadUserData = useCallback(async (userId: string, email: string, metadata?: any) => {
-    // 避免重複觸發載入
-    if (isLoading && lastLoadedUserId.current === userId) return;
+  // 深度重置：取代「清除瀏覽器暫存」的手動操作
+  const handleDeepReset = useCallback(async () => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      await handleLogout();
+      // 在虛擬環境中，強制刷新 UI 狀態
+      window.location.href = window.location.origin;
+    } catch (e) {
+      handleLogout();
+    }
+  }, [handleLogout]);
 
+  const loadUserData = useCallback(async (userId: string, email: string, metadata?: any) => {
     setLoadError(null);
     setIsLoading(true);
     lastLoadedUserId.current = userId;
@@ -61,13 +68,14 @@ const App: React.FC = () => {
       
       loadingTimeoutRef.current = setTimeout(() => {
         setLoadError({ 
-          message: "連線超時。資料庫 RLS 權限檢查可能仍處於死鎖狀態 (Recursion Deadlock)。", 
-          code: "TIMEOUT_DB" 
+          message: "資料庫回應過慢。這通常是權限死鎖造成的。", 
+          code: "DB_TIMEOUT",
+          canReset: true
         });
         setIsLoading(false);
-      }, 10000);
+      }, 8000);
 
-      // 1. 優先獲取 Profile
+      // 1. Profile
       const profile = await fetchProfile(userId);
       
       if (profile && profile.is_active === false) {
@@ -76,7 +84,7 @@ const App: React.FC = () => {
         return;
       }
 
-      // 2. 獲取交易資料 (如果 profile 載入成功，這裡通常也會成功)
+      // 2. Trades
       const tradeData = await fetchTrades();
       
       if (!profile || !profile.email) {
@@ -117,14 +125,14 @@ const App: React.FC = () => {
       setTrades(tradeData);
       setLoadError(null);
     } catch (err: any) {
-      console.error("Critical Load Error:", err);
-      // 針對 500 錯誤提供特定的 SQL 補丁建議
+      console.error("Load Error:", err);
       const isRecursion = err.message?.includes('recursion') || err.message?.includes('infinite');
       setLoadError({
         message: isRecursion 
-          ? "無限遞迴死鎖：資料庫正在循環查詢權限，請執行最新的 SQL 修正補丁 (is_admin_v2)。" 
-          : (err.message || "發生未知載入錯誤，請檢查網路連線。"),
-        code: isRecursion ? "RLS_RECURSION_500" : (err.code || "FETCH_FAILED")
+          ? "系統偵測到 RLS 權限死鎖。這可能是因為舊的快取狀態與新規則衝突。" 
+          : (err.message || "讀取失敗，請確認 SQL 已正確執行。"),
+        code: isRecursion ? "RLS_RECURSION_500" : (err.code || "ERR_500"),
+        canReset: true
       });
     } finally {
       setIsLoading(false);
@@ -148,6 +156,8 @@ const App: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          // 當新登入時，自動清除之前的錯誤
+          setLoadError(null);
           await loadUserData(session.user.id, session.user.email!, session.user.user_metadata);
         }
       } else {
@@ -168,17 +178,17 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] p-6 text-center">
         <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-3xl flex items-center justify-center text-3xl mb-6 border border-rose-500/20 shadow-2xl shadow-rose-500/10">
-          <i className="fas fa-database"></i>
+          <i className="fas fa-plug-circle-exclamation"></i>
         </div>
-        <h1 className="text-xl font-black text-white mb-2 uppercase tracking-tight">系統連線異常</h1>
+        <h1 className="text-xl font-black text-white mb-2 uppercase tracking-tight">存取連線死鎖</h1>
         
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl mb-8 max-w-md w-full shadow-2xl">
           <p className="text-slate-400 text-xs leading-relaxed mb-4">
             {loadError.message}
           </p>
           <div className="bg-black/50 p-3 rounded-xl text-left border border-slate-800">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Error Diagnostics</p>
-            <p className="text-[10px] font-mono text-rose-400 break-all">ID: {loadError.code || 'UNKNOWN'}</p>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">診斷代碼</p>
+            <p className="text-[10px] font-mono text-rose-400 break-all">{loadError.code || 'UNKNOWN'}</p>
           </div>
         </div>
 
@@ -187,18 +197,26 @@ const App: React.FC = () => {
             onClick={handleRetry} 
             className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98]"
           >
-            嘗試重新載入 (Retry)
+            直接重試 (Retry)
           </button>
+          
+          <button 
+            onClick={handleDeepReset} 
+            className="w-full py-4 bg-rose-600/10 text-rose-500 border border-rose-500/20 rounded-2xl font-black hover:bg-rose-600/20 transition-all text-xs flex items-center justify-center gap-2"
+          >
+            <i className="fas fa-trash-can"></i> 深度清理並登出 (推薦)
+          </button>
+
           <button 
             onClick={handleLogout} 
-            className="w-full py-4 bg-slate-800 text-slate-400 rounded-2xl font-black hover:bg-slate-700 transition-all text-xs"
+            className="w-full py-4 text-slate-500 font-black text-[10px] uppercase hover:text-slate-300"
           >
-            切換帳號或登出
+            普通登出
           </button>
         </div>
         
         <p className="mt-8 text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-          請確保已執行「防死鎖」SQL 指令以解除 RLS 循環
+          深度清理將移除本地 Session 快取以解除 RLS 衝突
         </p>
       </div>
     );
@@ -221,8 +239,8 @@ const App: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] gap-4 text-center p-6">
         <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(79,70,229,0.3)]"></div>
         <div className="space-y-1">
-          <p className="text-[10px] font-black text-indigo-500 animate-pulse uppercase tracking-[0.4em]">Secure Database Link</p>
-          <p className="text-slate-600 text-[8px] uppercase tracking-widest font-bold">Verifying Identity Layers...</p>
+          <p className="text-[10px] font-black text-indigo-500 animate-pulse uppercase tracking-[0.4em]">Establishing Clean Session</p>
+          <p className="text-slate-600 text-[8px] uppercase tracking-widest font-bold">Synchronizing Security Tokens...</p>
         </div>
       </div>
     );

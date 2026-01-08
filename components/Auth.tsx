@@ -6,6 +6,7 @@ import { DEFAULT_SETUPS, DEFAULT_SYMBOLS } from '../constants';
 const Auth: React.FC<{ onLogin: () => void }> = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{message: string, hint?: string} | null>(null);
 
@@ -98,7 +99,7 @@ const Auth: React.FC<{ onLogin: () => void }> = () => {
             <i className="fas fa-shield-halved text-white text-3xl"></i>
           </div>
           
-          <h2 className="text-3xl font-black text-white tracking-tight mb-2">TradeMind <span className="text-indigo-500">Secure</span></h2>
+          <h2 className="text-3xl font-black text-white tracking-tight mb-2">屬於您個人交易日誌</h2>
           <p className="text-slate-500 text-sm mb-8 font-medium">封閉式雲端系統，僅供授權存取</p>
 
           <form onSubmit={handleLogin} className="space-y-4 text-left">
@@ -116,14 +117,23 @@ const Auth: React.FC<{ onLogin: () => void }> = () => {
 
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">安全密碼</label>
-              <input 
-                type="password" 
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-slate-800/40 border border-slate-700 text-white p-4 rounded-2xl outline-none focus:border-indigo-500 transition font-medium"
-                placeholder="••••••••"
-                required
-              />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full bg-slate-800/40 border border-slate-700 text-white p-4 pr-12 rounded-2xl outline-none focus:border-indigo-500 transition font-medium"
+                  placeholder="••••••••"
+                  required
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition"
+                >
+                  <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
             </div>
 
             {error && (

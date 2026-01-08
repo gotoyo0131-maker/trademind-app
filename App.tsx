@@ -315,7 +315,7 @@ const App: React.FC = () => {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white rotate-12 shadow-md">
             <i className="fas fa-shield-halved"></i>
           </div>
-          <h1 className="text-lg font-black text-slate-800 tracking-tight">TradeMind <span className="text-indigo-600">Pro</span></h1>
+          <h1 className="text-lg font-black text-slate-800 tracking-tight">{currentUser.username} 交易日誌</h1>
         </div>
         
         <nav className="flex-grow space-y-1">

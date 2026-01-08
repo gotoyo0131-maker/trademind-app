@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Trade, User, TradeDirection } from '../types';
 import TradeCalendar from './TradeCalendar';
 import { 
@@ -23,6 +23,12 @@ const getDurationMinutes = (start: string, end: string) => {
 const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, onDateClick, onAddFirstTrade, onGoToSettings }) => {
   const [viewMode, setViewMode] = useState<'monthly' | 'overall'>('overall');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [mounted, setMounted] = useState(false);
+
+  // 確保在客戶端掛載後再渲染圖表，解決 ResponsiveContainer 的尺寸偵測問題
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 1. 數據準備
   const sortedTrades = useMemo(() => {
@@ -66,12 +72,15 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
     
     let runningEquity = effectiveInitialBalance;
     const equityHistory = [
-      { name: 'Start', equity: effectiveInitialBalance }, 
-      ...sortedTrades.map((t) => {
+      { name: 'Start', equity: effectiveInitialBalance, fullDate: 'Initial' }, 
+      ...sortedTrades.map((t, idx) => {
         runningEquity += t.pnlAmount;
+        const dateStr = new Date(t.exitTime).toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'});
         return { 
-          name: new Date(t.exitTime).toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'}), 
-          equity: Number(runningEquity.toFixed(2))
+          // 加入索引確保 key 唯一，避免同日交易導致圖表混亂
+          name: `${dateStr} (#${idx + 1})`, 
+          equity: Number(runningEquity.toFixed(2)),
+          fullDate: new Date(t.exitTime).toLocaleString()
         };
       })
     ];
@@ -215,61 +224,65 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
                   </h3>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase">Live Metrics</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Live Analysis</span>
                   </div>
                 </div>
                 
-                {/* 修正：增加 key 屬性強制重新掛載，並使用 LineChart 提升相容性 */}
-                <div className="h-[350px] w-full block relative min-w-0" style={{ display: 'block' }}>
-                  <ResponsiveContainer width="100%" height="100%" debounce={100}>
-                    <LineChart 
-                      key={`chart-${trades.length}-${currentUser.useInitialBalance}`}
-                      data={stats?.equityHistory || []} 
-                      margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis 
-                        dataKey="name" 
-                        fontSize={10} 
-                        tickMargin={10} 
-                        axisLine={false} 
-                        tickLine={false} 
-                        stroke="#94a3b8"
-                      />
-                      <YAxis 
-                        domain={['auto', 'auto']} 
-                        fontSize={10} 
-                        axisLine={false} 
-                        tickLine={false}
-                        stroke="#94a3b8"
-                        tickFormatter={(val) => {
-                          if (Math.abs(val) >= 1000) return `$${(val/1000).toFixed(1)}k`;
-                          return `$${val}`;
-                        }}
-                      />
-                      <Tooltip 
-                        formatter={(val: number) => [`$${val.toLocaleString()}`, currentUser.useInitialBalance ? '資產淨值' : '累計盈虧']}
-                        contentStyle={{ 
-                          borderRadius: '16px', 
-                          border: 'none', 
-                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          padding: '12px'
-                        }}
-                      />
-                      <ReferenceLine y={currentUser.useInitialBalance ? currentUser.initialBalance || 0 : 0} stroke="#cbd5e1" strokeDasharray="3 3" />
-                      <Line 
-                        type="monotone" 
-                        dataKey="equity" 
-                        stroke="#4f46e5" 
-                        strokeWidth={4} 
-                        dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }}
-                        activeDot={{ r: 6, strokeWidth: 0 }}
-                        isAnimationActive={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                {/* 關鍵修復：確保 mounted 狀態為 true 才渲染，並給予明確的高度容器 */}
+                <div className="h-[350px] min-h-[350px] w-full relative" style={{ display: 'block' }}>
+                  {mounted && stats?.equityHistory && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart 
+                        data={stats.equityHistory} 
+                        margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis 
+                          dataKey="name" 
+                          fontSize={9} 
+                          tickMargin={10} 
+                          axisLine={false} 
+                          tickLine={false} 
+                          stroke="#94a3b8"
+                        />
+                        <YAxis 
+                          domain={['auto', 'auto']} 
+                          fontSize={10} 
+                          axisLine={false} 
+                          tickLine={false}
+                          stroke="#94a3b8"
+                          tickFormatter={(val) => `$${val.toLocaleString()}`}
+                        />
+                        <Tooltip 
+                          labelFormatter={(_, payload) => payload[0]?.payload?.fullDate || ''}
+                          formatter={(val: number) => [`$${val.toLocaleString()}`, currentUser.useInitialBalance ? '資產淨值' : '累計盈虧']}
+                          contentStyle={{ 
+                            borderRadius: '16px', 
+                            border: 'none', 
+                            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                          }}
+                        />
+                        <ReferenceLine y={currentUser.useInitialBalance ? currentUser.initialBalance || 0 : 0} stroke="#cbd5e1" strokeDasharray="3 3" />
+                        <Line 
+                          type="monotone" 
+                          dataKey="equity" 
+                          stroke="#4f46e5" 
+                          strokeWidth={3} 
+                          dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }}
+                          activeDot={{ r: 6, strokeWidth: 0 }}
+                          isAnimationActive={true}
+                          animationDuration={800}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                  {!mounted && (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                      <p className="text-[10px] font-black text-slate-300 uppercase animate-pulse tracking-widest">初始化圖表佈局...</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

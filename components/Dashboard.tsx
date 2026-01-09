@@ -3,7 +3,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Trade, User, TradeDirection } from '../types';
 import TradeCalendar from './TradeCalendar';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
+  BarChart, Bar, Cell
 } from 'recharts';
 
 interface DashboardProps {
@@ -20,17 +21,22 @@ const getDurationMinutes = (start: string, end: string) => {
   return ms > 0 ? Math.floor(ms / (1000 * 60)) : 0;
 };
 
+// 生成 24 小時時段定義 (每小時一格)
+const TIME_PERIODS = Array.from({ length: 24 }, (_, i) => ({
+  label: `${i.toString().padStart(2, '0')}:00`,
+  start: i,
+  end: i + 1
+}));
+
 const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, onDateClick, onAddFirstTrade, onGoToSettings }) => {
   const [viewMode, setViewMode] = useState<'monthly' | 'overall'>('overall');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [mounted, setMounted] = useState(false);
 
-  // 確保在客戶端掛載後再渲染圖表，解決 ResponsiveContainer 的尺寸偵測問題
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 1. 數據準備
   const sortedTrades = useMemo(() => {
     return [...trades].sort((a, b) => new Date(a.exitTime).getTime() - new Date(b.exitTime).getTime());
   }, [trades]);
@@ -45,7 +51,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
     });
   }, [sortedTrades, currentDate, viewMode]);
 
-  // 2. 核心統計計算
   const stats = useMemo(() => {
     if (trades.length === 0) return null;
 
@@ -67,7 +72,21 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
     const avgWinTime = wins.length > 0 ? wins.reduce((acc, t) => acc + getDurationMinutes(t.entryTime, t.exitTime), 0) / wins.length : 0;
     const avgLossTime = losses.length > 0 ? losses.reduce((acc, t) => acc + getDurationMinutes(t.entryTime, t.exitTime), 0) / losses.length : 0;
 
-    // 判斷是否使用初始本金
+    // 時段勝率統計 (24 小時)
+    const timeWinRateData = TIME_PERIODS.map(period => {
+      const periodTrades = currentDisplayTrades.filter(t => {
+        const hour = new Date(t.entryTime).getHours();
+        return hour === period.start;
+      });
+      const periodWins = periodTrades.filter(t => t.pnlAmount > 0);
+      const wr = periodTrades.length > 0 ? (periodWins.length / periodTrades.length) * 100 : 0;
+      return {
+        name: period.label,
+        winRate: Number(wr.toFixed(1)),
+        count: periodTrades.length
+      };
+    });
+
     const effectiveInitialBalance = currentUser.useInitialBalance ? (currentUser.initialBalance || 0) : 0;
     
     let runningEquity = effectiveInitialBalance;
@@ -77,10 +96,9 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
         runningEquity += t.pnlAmount;
         const dateStr = new Date(t.exitTime).toLocaleDateString(undefined, {month: 'numeric', day: 'numeric'});
         return { 
-          // 加入索引確保 key 唯一，避免同日交易導致圖表混亂
           name: `${dateStr} (#${idx + 1})`, 
           equity: Number(runningEquity.toFixed(2)),
-          fullDate: new Date(t.exitTime).toLocaleString()
+          fullDate: new Date(t.exitTime).toLocaleString(undefined, { hour12: false })
         };
       })
     ];
@@ -94,7 +112,8 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
       totalPnl, winRate, avgWin, avgLoss, bestTrade, worstTrade, 
       longPct, shortPct: 100 - longPct, avgWinTime, avgLossTime,
       count: currentDisplayTrades.length, equityHistory, currentEquity: runningEquity,
-      initialBalance: effectiveInitialBalance, totalReturnPct, totalLifetimePnl
+      initialBalance: effectiveInitialBalance, totalReturnPct, totalLifetimePnl,
+      timeWinRateData
     };
   }, [filteredTrades, sortedTrades, currentUser]);
 
@@ -104,43 +123,12 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
         <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white text-4xl mb-8 shadow-2xl shadow-indigo-600/20 rotate-12">
           <i className="fas fa-feather-pointed"></i>
         </div>
-        
         <div className="text-center max-w-md px-6">
           <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-4">歡迎開啟第一筆紀錄</h2>
-          <p className="text-slate-500 font-medium leading-relaxed mb-10">
-            點擊下方按鈕開始記錄您的第一筆交易，系統將自動為您生成多維度的績效分析。
-          </p>
-          
-          <button 
-            onClick={onAddFirstTrade} 
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition active:scale-95 mb-12 flex items-center justify-center gap-3"
-          >
+          <p className="text-slate-500 font-medium leading-relaxed mb-10">點擊下方按鈕開始記錄您的第一筆交易，系統將自動為您生成多維度的績效分析。</p>
+          <button onClick={onAddFirstTrade} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition active:scale-95 mb-12 flex items-center justify-center gap-3">
             <i className="fas fa-plus-circle"></i> 開始記錄第一筆交易
           </button>
-
-          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm group hover:border-indigo-300 transition-all text-left relative overflow-hidden">
-            <div className="absolute top-[-20px] right-[-20px] text-slate-50 opacity-10 rotate-12 group-hover:text-indigo-100 transition-colors">
-              <i className="fas fa-chart-line text-[120px]"></i>
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
-                  <i className="fas fa-wallet text-sm"></i>
-                </div>
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">專家建議 (PRO TIPS)</span>
-              </div>
-              <h4 className="text-base font-black text-slate-800 mb-2">想要追蹤帳戶總資產與投報率嗎？</h4>
-              <p className="text-xs text-slate-400 font-medium leading-relaxed mb-6">
-                您可以先前往「系統設置」開啟帳戶本金配置。開啟後，系統將解鎖<b>複利成長曲線圖</b>與<b>累計回報率 (%)</b> 分析，讓您精準掌控資產增長。
-              </p>
-              <button 
-                onClick={onGoToSettings}
-                className="text-xs font-black text-indigo-600 border-b-2 border-indigo-100 hover:border-indigo-600 transition pb-1"
-              >
-                前往系統設置查看 <i className="fas fa-chevron-right text-[10px] ml-1"></i>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -164,10 +152,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
       </header>
 
       {currentUser.useInitialBalance && stats && (
-        <div className="bg-gradient-to-r from-slate-900 to-indigo-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group animate-in slide-in-from-top duration-700">
-          <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition duration-700">
-            <i className="fas fa-chart-pie text-[120px]"></i>
-          </div>
+        <div className="bg-gradient-to-r from-slate-900 to-indigo-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden group">
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
             <div className="text-center md:text-left">
               <p className="text-indigo-300 text-[10px] font-black uppercase tracking-[0.3em] mb-2">當前帳戶總資產 (Total Equity)</p>
@@ -180,11 +165,11 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
             </div>
             <div className="grid grid-cols-2 gap-8 border-l border-white/10 pl-8">
               <div>
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">初始投入本金</p>
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">初始本金</p>
                 <p className="text-xl font-bold text-slate-100">${stats.initialBalance.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">累計總盈虧</p>
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">累計盈虧</p>
                 <p className={`text-xl font-bold ${stats.totalLifetimePnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {stats.totalLifetimePnl >= 0 ? '+' : ''}${Math.abs(stats.totalLifetimePnl).toLocaleString()}
                 </p>
@@ -220,88 +205,64 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
               <div className="flex flex-col w-full">
                 <div className="flex justify-between items-center mb-8 px-2">
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                    <i className="fas fa-chart-line text-indigo-500"></i> {currentUser.useInitialBalance ? '資產增長曲線 (Equity)' : '累計盈虧趨勢 (PnL)'}
+                    <i className="fas fa-chart-line text-indigo-500"></i> {currentUser.useInitialBalance ? '資產增長曲線' : '累計盈虧趨勢'}
                   </h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase">
                     <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase">Live Analysis</span>
+                    24H Format Enabled
                   </div>
                 </div>
                 
-                {/* 關鍵修復：確保 mounted 狀態為 true 才渲染，並給予明確的高度容器 */}
-                <div className="h-[350px] min-h-[350px] w-full relative" style={{ display: 'block' }}>
+                <div className="h-[350px] min-h-[350px] w-full relative">
                   {mounted && stats?.equityHistory && (
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart 
-                        data={stats.equityHistory} 
-                        margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
-                      >
+                      <LineChart data={stats.equityHistory} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis 
-                          dataKey="name" 
-                          fontSize={9} 
-                          tickMargin={10} 
-                          axisLine={false} 
-                          tickLine={false} 
-                          stroke="#94a3b8"
-                        />
-                        <YAxis 
-                          domain={['auto', 'auto']} 
-                          fontSize={10} 
-                          axisLine={false} 
-                          tickLine={false}
-                          stroke="#94a3b8"
-                          tickFormatter={(val) => `$${val.toLocaleString()}`}
-                        />
+                        <XAxis dataKey="name" fontSize={9} tickMargin={10} axisLine={false} tickLine={false} stroke="#94a3b8" />
+                        <YAxis domain={['auto', 'auto']} fontSize={10} axisLine={false} tickLine={false} stroke="#94a3b8" tickFormatter={(val) => `$${val.toLocaleString()}`} />
                         <Tooltip 
                           labelFormatter={(_, payload) => payload[0]?.payload?.fullDate || ''}
-                          formatter={(val: number) => [`$${val.toLocaleString()}`, currentUser.useInitialBalance ? '資產淨值' : '累計盈虧']}
-                          contentStyle={{ 
-                            borderRadius: '16px', 
-                            border: 'none', 
-                            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-                            fontSize: '12px',
-                            fontWeight: 'bold'
-                          }}
+                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', fontSize: '12px', fontWeight: 'bold' }}
                         />
                         <ReferenceLine y={currentUser.useInitialBalance ? currentUser.initialBalance || 0 : 0} stroke="#cbd5e1" strokeDasharray="3 3" />
-                        <Line 
-                          type="monotone" 
-                          dataKey="equity" 
-                          stroke="#4f46e5" 
-                          strokeWidth={3} 
-                          dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }}
-                          activeDot={{ r: 6, strokeWidth: 0 }}
-                          isAnimationActive={true}
-                          animationDuration={800}
-                        />
+                        <Line type="monotone" dataKey="equity" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6, strokeWidth: 0 }} />
                       </LineChart>
                     </ResponsiveContainer>
-                  )}
-                  {!mounted && (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                      <p className="text-[10px] font-black text-slate-300 uppercase animate-pulse tracking-widest">初始化圖表佈局...</p>
-                    </div>
                   )}
                 </div>
               </div>
             )}
           </div>
 
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+          {/* 更新：24 小時時段勝率統計區塊 (每小時一格) */}
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-8 flex items-center gap-2">
-              <i className="fas fa-hourglass-half text-indigo-500"></i> {viewMode === 'overall' ? '歷史持倉時間' : '本月持倉時間'}
+              <i className="fas fa-clock text-indigo-500"></i> 24 小時勝率分佈 (每小時)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100">
-                <p className="text-[10px] font-black text-emerald-600 uppercase mb-2">平均獲利時間</p>
-                <p className="text-3xl font-black text-emerald-600">{stats?.avgWinTime.toFixed(0)} <span className="text-sm">分</span></p>
-              </div>
-              <div className="bg-rose-50/50 p-6 rounded-2xl border border-rose-100">
-                <p className="text-[10px] font-black text-rose-600 uppercase mb-2">平均損失時間</p>
-                <p className="text-3xl font-black text-rose-600">{stats?.avgLossTime.toFixed(0)} <span className="text-sm">分</span></p>
+            {/* 使用橫向滾動容器以容納 24 個 Bar */}
+            <div className="h-[400px] w-full overflow-y-auto pr-2 custom-scrollbar">
+              <div className="h-[650px] w-full"> {/* 增加內層高度確保 24 條 Bar 不會擠壓 */}
+                {mounted && stats?.timeWinRateData && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.timeWinRateData} layout="vertical" margin={{ left: 10, right: 30 }}>
+                      <XAxis type="number" hide domain={[0, 100]} />
+                      <YAxis dataKey="name" type="category" fontSize={10} axisLine={false} tickLine={false} width={50} stroke="#64748b" />
+                      <Tooltip 
+                        cursor={{ fill: '#f1f5f9' }}
+                        formatter={(val: number, name: string, payload: any) => [`${val}% (${payload.payload.count}筆)`, '勝率']}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '11px' }}
+                      />
+                      <Bar dataKey="winRate" radius={[0, 8, 8, 0]} barSize={16}>
+                        {stats.timeWinRateData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.winRate >= 50 ? '#10b981' : (entry.count > 0 ? '#f43f5e' : '#e2e8f0')} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
+            <p className="text-[10px] text-slate-400 font-medium mt-4 italic">分析您在一天中每個小時的交易表現，顏色代表該時段的執行勝率。</p>
           </div>
         </div>
 
@@ -346,7 +307,6 @@ const Dashboard: React.FC<DashboardProps> = ({ trades, currentUser, onViewLogs, 
                 </div>
                 <button onClick={onViewLogs} className="w-full mt-8 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black transition">查看日誌</button>
              </div>
-             <i className="fas fa-rocket absolute -right-4 -bottom-4 text-6xl text-white/5 rotate-12"></i>
           </div>
         </div>
       </div>

@@ -307,7 +307,7 @@ const App: React.FC = () => {
         <nav className="flex-grow space-y-1">
           <NavItem id="dashboard" icon="fa-chart-pie" label="績效總覽" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setLogSearchTerm('');}} />
           <NavItem id="logs" icon="fa-layer-group" label="交易日誌" active={activeTab === 'logs'} onClick={() => {setActiveTab('logs'); setLogSearchTerm('');}} />
-          <NavItem id="add" icon="fa-plus-circle" label="新增交易" active={activeTab === 'add'} onClick={() => {setActiveTab('add'); setLogSearchTerm('');}} />
+          {/* 移除原本的「新增交易」導航項 */}
           <NavItem id="mindset" icon="fa-brain" label="行為心理" active={activeTab === 'mindset'} onClick={() => {setActiveTab('mindset'); setLogSearchTerm('');}} />
           <NavItem id="settings" icon="fa-sliders-h" label="系統設置" active={activeTab === 'settings'} onClick={() => {setActiveTab('settings'); setLogSearchTerm('');}} />
           

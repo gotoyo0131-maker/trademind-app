@@ -182,7 +182,7 @@ const mapTradeToDb = (trade: any) => ({
   emotions: trade.emotions,
   pre_trade_mindset: trade.preTradeMindset,
   execution_rating: trade.executionRating,
-  notes_on_execution: trade.notes_on_execution,
+  notes_on_execution: trade.notesOnExecution, // 已修正：原為 trade.notes_on_execution
   error_category: trade.errorCategory,
   summary: trade.summary,
   improvements: trade.improvements,

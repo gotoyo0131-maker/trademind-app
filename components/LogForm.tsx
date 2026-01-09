@@ -224,6 +224,38 @@ const LogForm: React.FC<LogFormProps> = ({ onSave, onCancel, initialData, setupO
                 </div>
               </div>
             </div>
+
+            {/* 補回：第一步底部的交易圖解區塊 */}
+            <div className="space-y-6 pt-10 border-t border-slate-100">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <i className="fas fa-images"></i> 交易圖解 (Screenshots)
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {formData.screenshots?.map((ss, idx) => (
+                  <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 transition-all hover:border-indigo-300">
+                    <div className="flex justify-between items-center">
+                       <span className="text-[9px] font-black text-slate-400 uppercase">圖 {idx + 1}</span>
+                       {ss.url && <i className="fas fa-check-circle text-emerald-500 text-[10px]"></i>}
+                    </div>
+                    <input 
+                      type="url" 
+                      placeholder="圖片連結 (URL)" 
+                      value={ss.url} 
+                      onChange={e => handleScreenshotChange(idx, 'url', e.target.value)} 
+                      className="w-full p-2.5 text-[10px] border border-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-all" 
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="簡短描述" 
+                      value={ss.description} 
+                      onChange={e => handleScreenshotChange(idx, 'description', e.target.value)} 
+                      className="w-full p-2.5 text-[10px] border border-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-all" 
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-[9px] text-slate-400 italic">請輸入截圖的網址（如 Imgur, Discord 圖片連結等），系統將為您自動存檔。</p>
+            </div>
           </div>
         ) : (
           <div className="space-y-12 animate-in slide-in-from-right-4 duration-500">
